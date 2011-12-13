@@ -7,6 +7,7 @@
 
 struct cfq_io_context {
 	void *key;
+	struct request_queue *q;
 
 	void *cfqq[2];
 
