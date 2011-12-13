@@ -319,6 +319,13 @@ struct request_queue
 	 */
 	unsigned long		queue_flags;
 
+        /*
+         * ida allocated id for this queue.  Used to index queues from
+         * ioctx.
+         */
+        int                     id;
+
+
 	/*
 	 * protects queue structures from reentrancy. ->__queue_lock should
 	 * _never_ be used directly, it is queue private. always use
