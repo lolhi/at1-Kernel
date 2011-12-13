@@ -217,7 +217,6 @@ static struct io_context *create_task_io_context(struct task_struct *task,
 		return NULL;
 
 	/* initialize */
-<<<<<<< HEAD
 	atomic_long_set(&ret->refcount, 1);
 	atomic_set(&ret->nr_tasks, 1);
 	spin_lock_init(&ret->lock);
