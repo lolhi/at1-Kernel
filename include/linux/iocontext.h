@@ -5,6 +5,26 @@
 #include <linux/radix-tree.h>
 #include <linux/rcupdate.h>
 
+<<<<<<< HEAD
+=======
+struct ioc_builder;
+struct dev_io_context {
+	void *key;
+	struct io_context *ioc;
+
+	struct list_head queue_list;
+	struct hlist_node cic_list;
+
+	void (*dtor)(struct io_context *); /* destructor */
+	void (*exit)(struct io_context *); /* called on task exit */
+
+	struct rcu_head rcu_head;
+
+	struct ioc_builder *builder;
+};
+
+struct cfq_queue;
+>>>>>>> ec9f722... block: seperate CFQ io context management code
 struct cfq_ttime {
 	unsigned long last_end_request;
 
@@ -14,21 +34,18 @@ struct cfq_ttime {
 };
 
 struct cfq_io_context {
+<<<<<<< HEAD
 	void *key;
 
 	void *cfqq[2];
 
 	struct io_context *ioc;
 
+=======
+	struct dev_io_context dev_ioc;
+	struct cfq_queue *cfqq[2];
+>>>>>>> ec9f722... block: seperate CFQ io context management code
 	struct cfq_ttime ttime;
-
-	struct list_head queue_list;
-	struct hlist_node cic_list;
-
-	void (*dtor)(struct io_context *); /* destructor */
-	void (*exit)(struct io_context *); /* called on task exit */
-
-	struct rcu_head rcu_head;
 };
 
 /*
