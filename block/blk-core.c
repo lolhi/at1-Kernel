@@ -562,13 +562,22 @@ EXPORT_SYMBOL(blk_get_queue);
 
 static inline void blk_free_request(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_flags & REQ_ELVPRIV)
+	if (rq->cmd_flags & REQ_ELVPRIV) {
 		elv_put_request(q, rq);
+		if (rq->elv.icq)
+			put_io_context(rq->elv.icq->ioc, q);
+	}
+
 	mempool_free(rq, q->rq.rq_pool);
 }
 
 static struct request *
+<<<<<<< HEAD
 blk_alloc_request(struct request_queue *q, int flags, int priv, gfp_t gfp_mask)
+=======
+blk_alloc_request(struct request_queue *q, struct io_cq *icq,
+		  unsigned int flags, gfp_t gfp_mask)
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 {
 	struct request *rq = mempool_alloc(q->rq.rq_pool, gfp_mask);
 
@@ -579,12 +588,23 @@ blk_alloc_request(struct request_queue *q, int flags, int priv, gfp_t gfp_mask)
 
 	rq->cmd_flags = flags | REQ_ALLOCED;
 
+<<<<<<< HEAD
 	if (priv) {
+=======
+	if (flags & REQ_ELVPRIV) {
+		rq->elv.icq = icq;
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 		if (unlikely(elv_set_request(q, rq, gfp_mask))) {
 			mempool_free(rq, q->rq.rq_pool);
 			return NULL;
 		}
+<<<<<<< HEAD
 		rq->cmd_flags |= REQ_ELVPRIV;
+=======
+		/* @rq->elv.icq holds on to io_context until @rq is freed */
+		if (icq)
+			get_io_context(icq->ioc);
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 	}
 
 	return rq;
@@ -686,9 +706,24 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
+<<<<<<< HEAD
 	struct io_context *ioc = NULL;
 	const bool is_sync = rw_is_sync(rw_flags) != 0;
 	int may_queue, priv = 0;
+=======
+	struct elevator_type *et;
+	struct io_context *ioc;
+	struct io_cq *icq = NULL;
+	const bool is_sync = rw_is_sync(rw_flags) != 0;
+	bool retried = false;
+	int may_queue;
+retry:
+	et = q->elevator->type;
+	ioc = current->io_context;
+
+	if (unlikely(blk_queue_dead(q)))
+		return NULL;
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 
 	may_queue = elv_may_queue(q, rw_flags);
 	if (may_queue == ELV_MQUEUE_NO)
@@ -732,17 +767,47 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	rl->count[is_sync]++;
 	rl->starved[is_sync] = 0;
 
+<<<<<<< HEAD
 	if (blk_rq_should_init_elevator(bio)) {
 		priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 		if (priv)
 			rl->elvpriv++;
+=======
+	/*
+	 * Decide whether the new request will be managed by elevator.  If
+	 * so, mark @rw_flags and increment elvpriv.  Non-zero elvpriv will
+	 * prevent the current elevator from being destroyed until the new
+	 * request is freed.  This guarantees icq's won't be destroyed and
+	 * makes creating new ones safe.
+	 *
+	 * Also, lookup icq while holding queue_lock.  If it doesn't exist,
+	 * it will be created after releasing queue_lock.
+	 */
+	if (blk_rq_should_init_elevator(bio) &&
+	    !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags)) {
+		rw_flags |= REQ_ELVPRIV;
+		rl->elvpriv++;
+		if (et->icq_cache && ioc)
+			icq = ioc_lookup_icq(ioc, q);
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 	}
 
 	if (blk_queue_io_stat(q))
 		rw_flags |= REQ_IO_STAT;
 	spin_unlock_irq(q->queue_lock);
 
+<<<<<<< HEAD
 	rq = blk_alloc_request(q, rw_flags, priv, gfp_mask);
+=======
+	/* create icq if missing */
+	if (unlikely(et->icq_cache && !icq))
+		icq = ioc_create_icq(q, gfp_mask);
+
+	/* rqs are guaranteed to have icq on elv_set_request() if requested */
+	if (likely(!et->icq_cache || icq))
+		rq = blk_alloc_request(q, icq, rw_flags, gfp_mask);
+
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything

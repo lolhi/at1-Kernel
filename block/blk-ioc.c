@@ -263,7 +263,10 @@ struct io_context *current_io_context(gfp_t gfp_flags, int node)
 
 	return create_task_io_context(current, gfp_flags, node, false);
 }
+<<<<<<< HEAD
 EXPORT_SYMBOL(current_io_context);
+=======
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 
 /**
  * get_task_io_context - get io_context of a task
@@ -298,6 +301,104 @@ struct io_context *get_task_io_context(struct task_struct *task,
 }
 EXPORT_SYMBOL(get_task_io_context);
 
+<<<<<<< HEAD
+=======
+/**
+ * ioc_lookup_icq - lookup io_cq from ioc
+ * @ioc: the associated io_context
+ * @q: the associated request_queue
+ *
+ * Look up io_cq associated with @ioc - @q pair from @ioc.  Must be called
+ * with @q->queue_lock held.
+ */
+struct io_cq *ioc_lookup_icq(struct io_context *ioc, struct request_queue *q)
+{
+	struct io_cq *icq;
+
+	lockdep_assert_held(q->queue_lock);
+
+	/*
+	 * icq's are indexed from @ioc using radix tree and hint pointer,
+	 * both of which are protected with RCU.  All removals are done
+	 * holding both q and ioc locks, and we're holding q lock - if we
+	 * find a icq which points to us, it's guaranteed to be valid.
+	 */
+	rcu_read_lock();
+	icq = rcu_dereference(ioc->icq_hint);
+	if (icq && icq->q == q)
+		goto out;
+
+	icq = radix_tree_lookup(&ioc->icq_tree, q->id);
+	if (icq && icq->q == q)
+		rcu_assign_pointer(ioc->icq_hint, icq);	/* allowed to race */
+	else
+		icq = NULL;
+out:
+	rcu_read_unlock();
+	return icq;
+}
+EXPORT_SYMBOL(ioc_lookup_icq);
+
+/**
+ * ioc_create_icq - create and link io_cq
+ * @q: request_queue of interest
+ * @gfp_mask: allocation mask
+ *
+ * Make sure io_cq linking %current->io_context and @q exists.  If either
+ * io_context and/or icq don't exist, they will be created using @gfp_mask.
+ *
+ * The caller is responsible for ensuring @ioc won't go away and @q is
+ * alive and will stay alive until this function returns.
+ */
+struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
+{
+	struct elevator_type *et = q->elevator->type;
+	struct io_context *ioc;
+	struct io_cq *icq;
+
+	/* allocate stuff */
+	ioc = create_io_context(current, gfp_mask, q->node);
+	if (!ioc)
+		return NULL;
+
+	icq = kmem_cache_alloc_node(et->icq_cache, gfp_mask | __GFP_ZERO,
+				    q->node);
+	if (!icq)
+		return NULL;
+
+	if (radix_tree_preload(gfp_mask) < 0) {
+		kmem_cache_free(et->icq_cache, icq);
+		return NULL;
+	}
+
+	icq->ioc = ioc;
+	icq->q = q;
+	INIT_LIST_HEAD(&icq->q_node);
+	INIT_HLIST_NODE(&icq->ioc_node);
+
+	/* lock both q and ioc and try to link @icq */
+	spin_lock_irq(q->queue_lock);
+	spin_lock(&ioc->lock);
+
+	if (likely(!radix_tree_insert(&ioc->icq_tree, q->id, icq))) {
+		hlist_add_head(&icq->ioc_node, &ioc->icq_list);
+		list_add(&icq->q_node, &q->icq_list);
+		if (et->ops.elevator_init_icq_fn)
+			et->ops.elevator_init_icq_fn(icq);
+	} else {
+		kmem_cache_free(et->icq_cache, icq);
+		icq = ioc_lookup_icq(ioc, q);
+		if (!icq)
+			printk(KERN_ERR "cfq: icq link failed!\n");
+	}
+
+	spin_unlock(&ioc->lock);
+	spin_unlock_irq(q->queue_lock);
+	radix_tree_preload_end();
+	return icq;
+}
+
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 void ioc_set_changed(struct io_context *ioc, int which)
 {
 	struct cfq_io_context *cic;

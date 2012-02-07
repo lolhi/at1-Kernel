@@ -56,6 +56,12 @@ struct elevator_ops
 	elevator_request_list_fn *elevator_former_req_fn;
 	elevator_request_list_fn *elevator_latter_req_fn;
 
+<<<<<<< HEAD
+=======
+	elevator_init_icq_fn *elevator_init_icq_fn;	/* see iocontext.h */
+	elevator_exit_icq_fn *elevator_exit_icq_fn;	/* ditto */
+
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 	elevator_set_req_fn *elevator_set_req_fn;
 	elevator_put_req_fn *elevator_put_req_fn;
 
@@ -81,6 +87,11 @@ struct elevator_type
 {
 	struct list_head list;
 	struct elevator_ops ops;
+<<<<<<< HEAD
+=======
+	size_t icq_size;	/* see iocontext.h */
+	size_t icq_align;	/* ditto */
+>>>>>>> a84f337... block, cfq: move icq creation and rq->elv.icq association to
 	struct elv_fs_entry *elevator_attrs;
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
