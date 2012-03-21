@@ -162,7 +162,8 @@ struct diagchar_dev {
 	unsigned char *buf_in_qdsp_1;
 	unsigned char *buf_in_qdsp_2;
 	unsigned char *buf_in_qdsp_cntl;
-	unsigned char *buf_in_wcnss;
+	unsigned char *buf_in_wcnss_1;
+	unsigned char *buf_in_wcnss_2;
 	unsigned char *buf_in_wcnss_cntl;
 	unsigned char *usb_buf_out;
 	unsigned char *apps_rsp_buf;
@@ -181,7 +182,8 @@ struct diagchar_dev {
 	int in_busy_2;
 	int in_busy_qdsp_1;
 	int in_busy_qdsp_2;
-	int in_busy_wcnss;
+	int in_busy_wcnss_1;
+	int in_busy_wcnss_2;
 	int read_len_legacy;
 	unsigned char *hdlc_buf;
 	unsigned hdlc_count;
@@ -217,7 +219,8 @@ struct diagchar_dev {
 	struct diag_request *write_ptr_svc;
 	struct diag_request *write_ptr_qdsp_1;
 	struct diag_request *write_ptr_qdsp_2;
-	struct diag_request *write_ptr_wcnss;
+	struct diag_request *write_ptr_wcnss_1;
+	struct diag_request *write_ptr_wcnss_2;
 	int logging_mode;
 	int mask_check;
 	int logging_process_id;
