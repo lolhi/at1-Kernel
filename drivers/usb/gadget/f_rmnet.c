@@ -476,17 +476,21 @@ frmnet_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	}
 	dev->notify->driver_data = dev;
 
-	if (dev->port.in->driver_data) {
-		pr_debug("%s: reset port:%d\n", __func__, dev->port_num);
-		gport_rmnet_disconnect(dev);
+	if (!dev->port.in->driver_data) {
+		if (config_ep_by_speed(cdev->gadget, f, dev->port.in) ||
+			config_ep_by_speed(cdev->gadget, f, dev->port.out)) {
+				dev->port.in->desc = NULL;
+				dev->port.out->desc = NULL;
+				return -EINVAL;
+		}
+
+		dev->port.in_desc = ep_choose(cdev->gadget,
+				dev->hs.in, dev->fs.in);
+		dev->port.out_desc = ep_choose(cdev->gadget,
+				dev->hs.out, dev->fs.out);
+
+		ret = gport_rmnet_connect(dev);
 	}
-
-	dev->port.in_desc = ep_choose(cdev->gadget,
-			dev->hs.in, dev->fs.in);
-	dev->port.out_desc = ep_choose(cdev->gadget,
-			dev->hs.out, dev->fs.out);
-
-	ret = gport_rmnet_connect(dev);
 
 	atomic_set(&dev->online, 1);
 
