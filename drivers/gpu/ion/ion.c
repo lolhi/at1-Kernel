@@ -607,11 +607,16 @@ int ion_map_iommu(struct ion_client *client, struct ion_handle *handle,
 			int domain_num, int partition_num, unsigned long align,
 			unsigned long iova_length, unsigned long *iova,
 			unsigned long *buffer_size,
-			unsigned long flags)
+			unsigned long flags, unsigned long iommu_flags)
 {
 	struct ion_buffer *buffer;
 	struct ion_iommu_map *iommu_map;
 	int ret = 0;
+
+	if (ION_IS_CACHED(flags)) {
+		pr_err("%s: Cannot map iommu as cached.\n", __func__);
+		return -EINVAL;
+	}
 
 	mutex_lock(&client->lock);
 	if (!ion_handle_validate(client, handle)) {
