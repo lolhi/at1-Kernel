@@ -703,12 +703,21 @@ static struct msm_bus_vectors grp2d0_init_vectors[] = {
 	},
 };
 
-static struct msm_bus_vectors grp2d0_nominal_vectors[] = {
+static struct msm_bus_vectors grp2d0_nominal_low_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_GRAPHICS_2D_CORE0,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab = 0,
 		.ib = KGSL_CONVERT_TO_MBPS(990),
+	},
+};
+
+static struct msm_bus_vectors grp2d0_nominal_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_GRAPHICS_2D_CORE0,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab = 0,
+		.ib = KGSL_CONVERT_TO_MBPS(1638),
 	},
 };
 
@@ -725,6 +734,10 @@ static struct msm_bus_paths grp2d0_bus_scale_usecases[] = {
 	{
 		ARRAY_SIZE(grp2d0_init_vectors),
 		grp2d0_init_vectors,
+	},
+	{
+		ARRAY_SIZE(grp2d0_nominal_low_vectors),
+		grp2d0_nominal_vectors,
 	},
 	{
 		ARRAY_SIZE(grp2d0_nominal_vectors),
@@ -751,12 +764,21 @@ static struct msm_bus_vectors grp2d1_init_vectors[] = {
 	},
 };
 
-static struct msm_bus_vectors grp2d1_nominal_vectors[] = {
+static struct msm_bus_vectors grp2d1_nominal_low_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_GRAPHICS_2D_CORE1,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab = 0,
 		.ib = KGSL_CONVERT_TO_MBPS(990),
+	},
+};
+
+static struct msm_bus_vectors grp2d1_nominal_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_GRAPHICS_2D_CORE1,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab = 0,
+		.ib = KGSL_CONVERT_TO_MBPS(1638),
 	},
 };
 
@@ -773,6 +795,10 @@ static struct msm_bus_paths grp2d1_bus_scale_usecases[] = {
 	{
 		ARRAY_SIZE(grp2d1_init_vectors),
 		grp2d1_init_vectors,
+	},
+	{
+		ARRAY_SIZE(grp2d1_nominal_low_vectors),
+		grp2d1_nominal_vectors,
 	},
 	{
 		ARRAY_SIZE(grp2d1_nominal_vectors),
@@ -928,6 +954,10 @@ static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 	.pwrlevel = {
 		{
 			.gpu_freq = 200000000,
+			.bus_freq = 3,
+		},
+		{
+			.gpu_freq = 160000000,
 			.bus_freq = 2,
 		},
 		{
@@ -940,7 +970,7 @@ static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 		},
 	},
 	.init_level = 0,
-	.num_levels = 3,
+	.num_levels = 4,
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
 	.nap_allowed = true,
@@ -979,6 +1009,10 @@ static struct kgsl_device_platform_data kgsl_2d1_pdata = {
 	.pwrlevel = {
 		{
 			.gpu_freq = 200000000,
+			.bus_freq = 3,
+		},
+		{
+			.gpu_freq = 160000000,
 			.bus_freq = 2,
 		},
 		{
@@ -991,7 +1025,7 @@ static struct kgsl_device_platform_data kgsl_2d1_pdata = {
 		},
 	},
 	.init_level = 0,
-	.num_levels = 3,
+	.num_levels = 4,
 	.set_grp_async = NULL,
 	.idle_timeout = HZ/5,
 	.nap_allowed = true,
