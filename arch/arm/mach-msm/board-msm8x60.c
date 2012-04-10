@@ -6709,6 +6709,7 @@ static struct platform_device *surf_devices[] __initdata = {
 	&ion_dev,
 #endif
 	&msm8660_device_watchdog,
+	&msm_device_tz_log,
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC //110114_BCM43291_PLATFORM
    &wlan_device,
@@ -6724,7 +6725,6 @@ static struct platform_device *surf_devices[] __initdata = {
 #ifdef VEE_2_0_CONTROL
 	&gpio_i2c_20th_device,
 #endif
-};
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION

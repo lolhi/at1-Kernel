@@ -49,7 +49,7 @@ extern unsigned int max_capped;
 
 #ifdef CONFIG_SKY_CORE_VOLTAGE
 #define MAX_VDD_SC		1350000 /* uV */
-#define MIN_VDD_SC		800000	/* uV */
+#define MIN_VDD_SC		775000	/* uV */
 #define VDD_OFFSET            0//75000
 #else
 #define MAX_VDD_SC		1325000 /* uV */
