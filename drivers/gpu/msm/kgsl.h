@@ -28,6 +28,9 @@
 /* Timestamp window used to detect rollovers */
 #define KGSL_TIMESTAMP_WINDOW 0x80000000
 
+/* Timestamp window used to detect rollovers */
+#define KGSL_TIMESTAMP_WINDOW 0x80000000
+
 /*cache coherency ops */
 #define DRM_KGSL_GEM_CACHE_OP_TO_DEV	0x0001
 #define DRM_KGSL_GEM_CACHE_OP_FROM_DEV	0x0002
