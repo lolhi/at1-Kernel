@@ -45,12 +45,12 @@ static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
 
 static int is_first_page(struct page *page)
 {
-	return test_bit(PG_private, &page->flags);
+	return PagePrivate(page);
 }
 
 static int is_last_page(struct page *page)
 {
-	return test_bit(PG_private_2, &page->flags);
+	return PagePrivate2(page);
 }
 
 static void get_zspage_mapping(struct page *page, unsigned int *class_idx,
@@ -180,7 +180,7 @@ out:
  * link together 3 PAGE_SIZE sized pages to form a zspage
  * since then we can perfectly fit in 8 such objects.
  */
-static int get_zspage_order(int class_size)
+static int get_pages_per_zspage(int class_size)
 {
 	int i, max_usedpc = 0;
 	/* zspage order which gives maximum used size per KB */
@@ -247,13 +247,11 @@ static void *obj_location_to_handle(struct page *page, unsigned long obj_idx)
 }
 
 /* Decode <page, obj_idx> pair from the given object handle */
-static void obj_handle_to_location(void *handle, struct page **page,
+static void obj_handle_to_location(unsigned long handle, struct page **page,
 				unsigned long *obj_idx)
 {
-	unsigned long hval = (unsigned long)handle;
-
-	*page = pfn_to_page(hval >> OBJ_INDEX_BITS);
-	*obj_idx = hval & OBJ_INDEX_MASK;
+	*page = pfn_to_page(handle >> OBJ_INDEX_BITS);
+	*obj_idx = handle & OBJ_INDEX_MASK;
 }
 
 static unsigned long obj_idx_to_offset(struct page *page,
@@ -368,7 +366,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 	 * identify the last page.
 	 */
 	error = -ENOMEM;
-	for (i = 0; i < class->zspage_order; i++) {
+	for (i = 0; i < class->pages_per_zspage; i++) {
 		struct page *page, *prev_page;
 
 		page = alloc_page(flags);
@@ -377,7 +375,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 		INIT_LIST_HEAD(&page->lru);
 		if (i == 0) {	/* first page */
-			set_bit(PG_private, &page->flags);
+			SetPagePrivate(page);
 			set_page_private(page, 0);
 			first_page = page;
 			first_page->inuse = 0;
@@ -388,9 +386,8 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 			page->first_page = first_page;
 		if (i >= 2)
 			list_add(&page->lru, &prev_page->lru);
-		if (i == class->zspage_order - 1)	/* last page */
-			set_bit(PG_private_2, &page->flags);
-
+		if (i == class->pages_per_zspage - 1)	/* last page */
+			SetPagePrivate2(page);
 		prev_page = page;
 	}
 
@@ -398,7 +395,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 	first_page->freelist = obj_location_to_handle(first_page, 0);
 	/* Maximum number of objects we can store in this zspage */
-	first_page->objects = class->zspage_order * PAGE_SIZE / class->size;
+	first_page->objects = class->pages_per_zspage * PAGE_SIZE / class->size;
 
 	error = 0; /* Success */
 
@@ -513,7 +510,7 @@ struct zs_pool *zs_create_pool(const char *name, gfp_t flags)
 		class->size = size;
 		class->index = i;
 		spin_lock_init(&class->lock);
-		class->zspage_order = get_zspage_order(size);
+		class->pages_per_zspage = get_pages_per_zspage(size);
 
 	}
 
@@ -567,18 +564,14 @@ EXPORT_SYMBOL_GPL(zs_destroy_pool);
  * zs_malloc - Allocate block of given size from pool.
  * @pool: pool to allocate from
  * @size: size of block to allocate
- * @page: page no. that holds the object
- * @offset: location of object within page
  *
- * On success, <page, offset> identifies block allocated
- * and 0 is returned. On failure, <page, offset> is set to
- * 0 and -ENOMEM is returned.
- *
+ * On success, handle to the allocated object is returned,
+ * otherwise 0.
  * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
  */
-void *zs_malloc(struct zs_pool *pool, size_t size)
+unsigned long zs_malloc(struct zs_pool *pool, size_t size)
 {
-	void *obj;
+	unsigned long obj;
 	struct link_free *link;
 	int class_idx;
 	struct size_class *class;
@@ -587,7 +580,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
 	unsigned long m_objidx, m_offset;
 
 	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
-		return NULL;
+		return 0;
 
 	class_idx = get_size_class_index(size);
 	class = &pool->size_class[class_idx];
@@ -600,14 +593,14 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
 		spin_unlock(&class->lock);
 		first_page = alloc_zspage(class, pool->flags);
 		if (unlikely(!first_page))
-			return NULL;
+			return 0;
 
 		set_zspage_mapping(first_page, class->index, ZS_EMPTY);
 		spin_lock(&class->lock);
-		class->pages_allocated += class->zspage_order;
+		class->pages_allocated += class->pages_per_zspage;
 	}
 
-	obj = first_page->freelist;
+	obj = (unsigned long)first_page->freelist;
 	obj_handle_to_location(obj, &m_page, &m_objidx);
 	m_offset = obj_idx_to_offset(m_page, m_objidx, class->size);
 
@@ -626,7 +619,7 @@ void *zs_malloc(struct zs_pool *pool, size_t size)
 }
 EXPORT_SYMBOL_GPL(zs_malloc);
 
-void zs_free(struct zs_pool *pool, void *obj)
+void zs_free(struct zs_pool *pool, unsigned long obj)
 {
 	struct link_free *link;
 	struct page *first_page, *f_page;
@@ -653,13 +646,13 @@ void zs_free(struct zs_pool *pool, void *obj)
 							+ f_offset);
 	link->next = first_page->freelist;
 	kunmap_atomic(link);
-	first_page->freelist = obj;
+	first_page->freelist = (void *)obj;
 
 	first_page->inuse--;
 	fullness = fix_fullness_group(pool, first_page);
 
 	if (fullness == ZS_EMPTY)
-		class->pages_allocated -= class->zspage_order;
+		class->pages_allocated -= class->pages_per_zspage;
 
 	spin_unlock(&class->lock);
 
@@ -668,7 +661,16 @@ void zs_free(struct zs_pool *pool, void *obj)
 }
 EXPORT_SYMBOL_GPL(zs_free);
 
-void *zs_map_object(struct zs_pool *pool, void *handle)
+/**
+ * zs_map_object - get address of allocated object from handle.
+ * @pool: pool from which the object was allocated
+ * @handle: handle returned from zs_malloc
+ *
+ * Before using an object allocated from zs_malloc, it must be mapped using
+ * this function. When done with the object, it must be unmapped using
+ * zs_unmap_object
+*/
+void *zs_map_object(struct zs_pool *pool, unsigned long handle)
 {
 	struct page *page;
 	unsigned long obj_idx, off;
@@ -708,7 +710,7 @@ void *zs_map_object(struct zs_pool *pool, void *handle)
 }
 EXPORT_SYMBOL_GPL(zs_map_object);
 
-void zs_unmap_object(struct zs_pool *pool, void *handle)
+void zs_unmap_object(struct zs_pool *pool, unsigned long handle)
 {
 	struct page *page;
 	unsigned long obj_idx, off;
