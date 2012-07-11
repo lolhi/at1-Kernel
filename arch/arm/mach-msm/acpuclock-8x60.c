@@ -727,10 +727,8 @@ static int acpuclk_8x60_set_rate(int cpu, unsigned long rate,
 	unsigned long flags;
 	int rc = 0;
 
-	if (cpu > num_possible_cpus()) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (cpu > num_possible_cpus())
+		return -EINVAL;
 
 	if (max_capped && rate > max_capped)
 		rate = max_capped;
