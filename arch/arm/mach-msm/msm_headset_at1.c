@@ -22,7 +22,7 @@
 #include <linux/switch.h>
 #include <mach/mpp.h>                                   
 #include <asm/mach-types.h>
-#include <pmic.h>
+#include "pmic.h"
 #include <mach/board.h>
 #include <mach/msm_headset_at1.h>
 #include <mach/mpp.h>
