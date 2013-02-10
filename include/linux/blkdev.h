@@ -113,6 +113,11 @@ struct request {
 	 * space with the three elevator_private pointers.
 	 */
 	union {
+		struct {
+			struct io_cq		*icq;
+			void			*priv[2];
+		} elv;
+
 		void *elevator_private[3];
 		struct {
 			unsigned int		seq;
