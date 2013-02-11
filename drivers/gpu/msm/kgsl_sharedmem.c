@@ -536,8 +536,6 @@ kgsl_sharedmem_vmalloc_user(struct kgsl_memdesc *memdesc,
 
 	BUG_ON(size == 0);
 
-	kmemleak_not_leak(ptr);
-
 	protflags = GSL_PT_PAGE_RV;
 	if (!(flags & KGSL_MEMFLAGS_GPUREADONLY))
 		protflags |= GSL_PT_PAGE_WV;
