@@ -35,10 +35,10 @@
 #include <linux/fs.h>
 #include "audio_fileio.h"
 
-static int enable_dump=0;
+static int enable_dump;
 void set_enable_dump(int value)
 {
-     enable_dump=value;
+     enable_dump = value;
 }
 #endif
 
@@ -145,10 +145,11 @@ static ssize_t mvs_amr_write(struct file *file,
 				size_t count,
 				loff_t *ppos)
 {
-    int rc=0;
+    int rc;
     static unsigned char mvs_write_buf[AMR_PACKET_SIZE+HEAD_LENGTH_VT_RX];
 
-    if(mvs_adv_get_state()!=MVS_START)        return 0;
+    if(mvs_adv_get_state()!=MVS_START)
+        return 0;
     
     mutex_lock(&mvs_amr_rx_buf_lock);
 

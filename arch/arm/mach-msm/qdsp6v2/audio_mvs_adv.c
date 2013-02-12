@@ -22,13 +22,10 @@
 #include "audio_mvs_adv.h"
 #include "mvs_amr.h"
 #include "mvs_pcm.h"
-/*---------------------- FEATURE DEFINE ------------------------*/
-/*---------------------- FEATURE DEFINE ------------------------*/
 //#define SUPPORT_VARIABLE_RATE
-/*---------------------- VAUE DEFINE ------------------------*/
+
 /* Length of the DSP frame info header added to the voc packet. */
 #define DSP_FRAME_HDR_LEN 1
-/*---------------------- STATIC VARIABLE DEFINE ------------------------*/
 static mvs_adv_buf_info_t bf;
 static long elapsed_time;
 #ifdef VOLUMEKEY_NOISE_FIX
@@ -37,11 +34,13 @@ static char amr_null_packet[MAX_AMR_PKT_SIZE]={0x54, 0xf5, 0x1f, 0x96, 0x66,
 0xc0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
-static char noise_critical_section=0;
+static char noise_critical_section = 0;
 void enter_noise_critical_section(char OnOff)
 {
-    if(!OnOff)    noise_critical_section=0;
-    else    noise_critical_section=1;
+    if(!OnOff)
+	noise_critical_section = 0;
+    else
+	noise_critical_section = 1;
 }
 #endif
 /*---------------------- DEBUG or TEST function's here  ------------------------*/

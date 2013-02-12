@@ -395,14 +395,12 @@ int msm_snddev_poweramp_handset_on(void)
 void msm_snddev_poweramp_handset_on(void)
 #endif
 {
-	//pr_debug("%s: msm_snddev_poweramp_handset_on\n", __func__);
     snd_extamp_api_SetDevice(1, SND_DEVICE_HANDSET_RX);
 	return 0;
 }
 
 void msm_snddev_poweramp_handset_off(void)
 {
-	//pr_debug("%s: msm_snddev_poweramp_handset_off\n", __func__);
        snd_extamp_api_SetDevice(0, SND_DEVICE_HANDSET_RX);
 }
 #ifdef MODEL_SKY // FOR ICE-SCREAM
@@ -411,14 +409,12 @@ int msm_snddev_poweramp_speaker_on(void)
 void msm_snddev_poweramp_speaker_on(void)
 #endif
 {
-	//pr_debug("%s: msm_snddev_poweramp_speaker_on\n", __func__);
     snd_extamp_api_SetDevice(1, SND_DEVICE_SPEAKER_RX);
 	return 0;
 }
 
 void msm_snddev_poweramp_speaker_off(void)
 {
-	//pr_debug("%s: msm_snddev_poweramp_speaker_off\n", __func__);
        snd_extamp_api_SetDevice(0, SND_DEVICE_SPEAKER_RX);
 }
 
@@ -428,14 +424,12 @@ int msm_snddev_poweramp_headset_on(void)
 void msm_snddev_poweramp_headset_on(void)
 #endif
 {
-	//pr_debug("%s: msm_snddev_poweramp_headset_on\n", __func__);
     snd_extamp_api_SetDevice(1, SND_DEVICE_HEADSET_RX);
 	return 0;
 }
 
 void msm_snddev_poweramp_headset_off(void)
 {
-	//pr_debug("%s: msm_snddev_poweramp_headset_off\n", __func__);
        snd_extamp_api_SetDevice(0, SND_DEVICE_HEADSET_RX);
 }
 
@@ -445,13 +439,11 @@ int msm_snddev_poweramp_headset_speaker_on(void)
 void msm_snddev_poweramp_headset_speaker_on(void)
 #endif
 {
-	//pr_debug("%s: msm_snddev_poweramp_headset_speaker_on\n", __func__);
     snd_extamp_api_SetDevice(1, SND_DEVICE_SPEAKER_HEADSET_RX);
 	return 0;
 }
 void msm_snddev_poweramp_headset_speaker_off(void)
 {
-	//pr_debug("%s: msm_snddev_poweramp_headset_speaker_off\n", __func__);
        snd_extamp_api_SetDevice(0, SND_DEVICE_SPEAKER_HEADSET_RX);
 }
 #endif
@@ -463,9 +455,10 @@ static struct regulator *snddev_reg_l10;
 #endif
 
 static atomic_t preg_ref_cnt;
+
 static int msm_snddev_voltage_on(void)
 {
-	int rc=0;
+	int rc = 0;
 #ifndef CONFIG_SKYSND_CTRL
 	pr_debug("%s\n", __func__);
 
@@ -520,7 +513,7 @@ regulator_fail:
 static void msm_snddev_voltage_off(void)
 {
 #ifndef CONFIG_SKYSND_CTRL
-	int rc=0;
+	int rc;
 	pr_debug("%s\n", __func__);
 
 	if (!snddev_reg_ncp)

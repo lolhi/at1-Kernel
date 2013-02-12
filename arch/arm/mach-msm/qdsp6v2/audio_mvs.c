@@ -814,18 +814,16 @@ static int audio_mvs_stop(struct audio_mvs_info_type *audio)
 	voice_set_voc_path_full(0);
 #endif
 #ifdef MVS_ADV_SUPPORT
-    if(rc == 0)  
+    if(rc == 0) { 
 #endif
-	{
 		audio->state = AUDIO_MVS_STOPPED;
-
-	#ifdef MVS_ADV_SUPPORT
-		mvs_adv_set_state(MVS_STOP);
-	#endif
+#ifdef MVS_ADV_SUPPORT
+			mvs_adv_set_state(MVS_STOP);
 	} else {
+		audio->state = AUDIO_MVS_STOPPED;
 		pr_err("%s: Error! rc=%d \n", __func__, rc);
 	}
-       
+#endif
 	/* Allow sleep. */
 	wake_unlock(&audio->suspend_lock);
 	wake_unlock(&audio->idle_lock);

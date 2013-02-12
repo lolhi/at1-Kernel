@@ -1399,8 +1399,7 @@ void broadcast_event(u32 evt_id, u32 dev_id, u64 session_id)
 #ifdef CONFIG_SKY_CHARGING
         if((evt_id == AUDDEV_EVT_START_VOICE) && (snd_extamp_get_current_callmode() != MODE_VT))
                 msm_charger_set_current_incall(true);
-
-        if(evt_id == AUDDEV_EVT_END_VOICE)
+	 else if(evt_id == AUDDEV_EVT_END_VOICE)
                 msm_charger_set_current_incall(false);
 #endif
 
