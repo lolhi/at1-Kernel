@@ -29,7 +29,7 @@
 #define UPDATE_BUSY		50
 
 #ifdef CONFIG_SEC_LIMIT_MAX_FREQ
-#define LMF_BROWSER_THRESHOLD	500000
+#define LMF_BROWSER_THRESHOLD  500000
 #endif
 
 struct clk_pair {
@@ -68,9 +68,6 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 		new_level >= pwr->thermal_pwrlevel &&
 		new_level != pwr->active_pwrlevel) {
 		struct kgsl_pwrlevel *pwrlevel = &pwr->pwrlevels[new_level];
-		int diff = new_level - pwr->active_pwrlevel;
-		int d = (diff > 0) ? 1 : -1;
-		int level = pwr->active_pwrlevel;
 		pwr->active_pwrlevel = new_level;
 		if ((test_bit(KGSL_PWRFLAGS_CLK_ON, &pwr->power_flags)) ||
 			(device->state == KGSL_STATE_NAP)) {
@@ -82,14 +79,7 @@ void kgsl_pwrctrl_pwrlevel_change(struct kgsl_device *device,
 			if (pwr->idle_needed == true)
 				device->ftbl->idle(device,
 						KGSL_TIMEOUT_DEFAULT);
-			/* Don't shift by more than one level at a time to
-			 * avoid glitches.
-			 */
-			while (level != new_level) {
-				level += d;
-				clk_set_rate(pwr->grp_clks[0],
-						pwr->pwrlevels[level].gpu_freq);
-			}
+			clk_set_rate(pwr->grp_clks[0], pwrlevel->gpu_freq);
 		}
 		if (test_bit(KGSL_PWRFLAGS_AXI_ON, &pwr->power_flags)) {
 			if (pwr->pcl)
@@ -336,7 +326,6 @@ static void kgsl_pwrctrl_busy_time(struct kgsl_device *device, bool on_time)
 #ifdef CONFIG_SEC_LIMIT_MAX_FREQ
 	struct kgsl_pwrctrl *pwr;
 #endif
-
 	if (b->start.tv_sec == 0)
 		do_gettimeofday(&(b->start));
 	do_gettimeofday(&(b->stop));
@@ -737,7 +726,7 @@ _nap(struct kgsl_device *device)
 		}
 		kgsl_pwrctrl_irq(device, KGSL_PWRFLAGS_OFF);
 		kgsl_pwrctrl_clk(device, KGSL_PWRFLAGS_OFF, KGSL_STATE_NAP);
-		kgsl_pwrctrl_set_state(device, device->requested_state);
+		kgsl_pwrctrl_set_state(device, KGSL_STATE_NAP);
 		if (device->idle_wakelock.name)
 			wake_unlock(&device->idle_wakelock);
 	case KGSL_STATE_NAP:
