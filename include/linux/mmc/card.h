@@ -161,6 +161,7 @@ struct sdio_func_tuple;
  * MMC device
  */
 struct mmc_card {
+	struct sdio_func *sdio_single_irq;      /* SDIO function when only one IRQ active */
 	struct mmc_host		*host;		/* the host this device belongs to */
 	struct device		dev;		/* the device */
 	unsigned int		rca;		/* relative card address of device */

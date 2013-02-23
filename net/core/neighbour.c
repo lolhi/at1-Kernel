@@ -823,6 +823,8 @@ next_elt:
 		write_unlock_bh(&tbl->lock);
 		cond_resched();
 		write_lock_bh(&tbl->lock);
+		nht = rcu_dereference_protected(tbl->nht,
+						lockdep_is_held(&tbl->lock));
 	}
 	/* Cycle through all hash buckets every base_reachable_time/2 ticks.
 	 * ARP entry timeouts range from 1/2 base_reachable_time to 3/2
@@ -1311,8 +1313,6 @@ int neigh_resolve_output(struct sk_buff *skb)
 	if (!dst)
 		goto discard;
 
-	__skb_pull(skb, skb_network_offset(skb));
-
 	if (!neigh_event_send(neigh, skb)) {
 		int err;
 		struct net_device *dev = neigh->dev;
@@ -1324,6 +1324,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 			neigh_hh_init(neigh, dst, dst->ops->protocol);
 
 		do {
+			__skb_pull(skb, skb_network_offset(skb));
 			seq = read_seqbegin(&neigh->ha_lock);
 			err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 					      neigh->ha, NULL, skb->len);
@@ -1356,9 +1357,8 @@ int neigh_connected_output(struct sk_buff *skb)
 	struct net_device *dev = neigh->dev;
 	unsigned int seq;
 
-	__skb_pull(skb, skb_network_offset(skb));
-
 	do {
+		__skb_pull(skb, skb_network_offset(skb));
 		seq = read_seqbegin(&neigh->ha_lock);
 		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
 				      neigh->ha, NULL, skb->len);
@@ -2918,12 +2918,13 @@ EXPORT_SYMBOL(neigh_sysctl_unregister);
 
 static int __init neigh_init(void)
 {
-	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL);
-	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL);
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info);
+	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info, NULL);
 
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info);
-	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
+		      NULL);
+	rtnl_register(PF_UNSPEC, RTM_SETNEIGHTBL, neightbl_set, NULL, NULL);
 
 	return 0;
 }
