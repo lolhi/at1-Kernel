@@ -297,8 +297,8 @@ ifeq ($(OEM_CHROMIUMOS),1)
 DFLAGS += -DOEM_CHROMIUMOS -DEMBEDDED_PLATFORM -DARP_OFFLOAD_SUPPORT -DPKT_FILTER_SUPPORT
 endif
 
-CFLAGS += -fshort-wchar $(DFLAGS) $(WFLAGS) $(IFLAGS) $(CUSTOM_FLAGS)
-
+CFLAGS += $(DFLAGS) $(WFLAGS) $(IFLAGS) $(CUSTOM_FLAGS) -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -mtune=cortex-a8 -marm -march=armv7-a -mfpu=neon -ftree-vectorize -mvectorize-with-neon-quad
+#-fshort-wchar 
 
 
 LDFLAGS := -r
