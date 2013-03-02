@@ -45,6 +45,16 @@ struct anon_vma {
 	 * mm_take_all_locks() (mm_all_locks_mutex).
 	 */
 	struct list_head head;	/* Chain of private "related" vmas */
+
+	/*
+	 * NOTE: the LSB of the rb_root.rb_node is set by
+	 * mm_take_all_locks() _after_ taking the above lock. So the
+	 * rb_root must only be read/written after taking the above lock
+	 * to be sure to see a valid next pointer. The LSB bit itself
+	 * is serialized by a system wide lock only visible to
+	 * mm_take_all_locks() (mm_all_locks_mutex).
+	 */
+	struct rb_root rb_root;	/* Interval tree of private "related" vmas */
 };
 
 /*
