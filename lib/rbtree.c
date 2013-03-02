@@ -387,7 +387,7 @@ struct rb_node *rb_next(const struct rb_node *node)
 {
 	struct rb_node *parent;
 
-	if (RB_EMPTY_NODE(node))
+	if (rb_parent(node) == node)
 		return NULL;
 
 	/* If we have a right-hand child, go down and then left as far
@@ -416,7 +416,7 @@ struct rb_node *rb_prev(const struct rb_node *node)
 {
 	struct rb_node *parent;
 
-	if (RB_EMPTY_NODE(node))
+	if (rb_parent(node) == node)
 		return NULL;
 
 	/* If we have a left-hand child, go down and then right as far
