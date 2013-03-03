@@ -6725,7 +6725,6 @@ static struct platform_device *surf_devices[] __initdata = {
 #ifdef VEE_2_0_CONTROL
 	&gpio_i2c_20th_device,
 #endif
-};
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
