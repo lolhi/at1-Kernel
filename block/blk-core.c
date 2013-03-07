@@ -30,6 +30,7 @@
 #include <linux/list_sort.h>
 #include <linux/ratelimit.h>
 #include <linux/delay.h>
+#include <linux/ratelimit.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
