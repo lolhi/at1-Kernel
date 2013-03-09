@@ -22,7 +22,6 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/dma-mapping.h>
-#include <trace/events/power.h>
 
 #include "clock.h"
 
@@ -188,7 +187,6 @@ int clk_enable(struct clk *clk)
 		ret = vote_rate_vdd(clk, clk->rate);
 		if (ret)
 			goto err_vote_vdd;
-		trace_clock_enable(clk->dbg_name, 1, smp_processor_id());
 		if (clk->ops->enable) {
 			ret = clk->ops->enable(clk);
 			clk_log_map_enable(clk);
@@ -236,7 +234,6 @@ void clk_disable(struct clk *clk)
 	if (clk->count == 1) {
 		struct clk *parent = clk_get_parent(clk);
 
-		trace_clock_disable(clk->dbg_name, 0, smp_processor_id());
 		if (clk->ops->disable) {
 			clk->ops->disable(clk);
 			clk_log_map_disable(clk);
@@ -278,7 +275,6 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		return -ENOSYS;
 
 	spin_lock_irqsave(&clk->lock, flags);
-	trace_clock_set_rate(clk->dbg_name, rate, smp_processor_id());
 	if (clk->count) {
 		start_rate = clk->rate;
 		/* Enforce vdd requirements for target frequency. */
