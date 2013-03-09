@@ -240,8 +240,7 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 			queue_work(driver->diag_wq, &(driver->
 						diag_read_smd_qdsp_work));
 		}  else if (proc_num == WCNSS_DATA) {
-			driver->in_busy_wcnss_1 = 0;
-			driver->in_busy_wcnss_2 = 0;
+			driver->in_busy_wcnss = 0;
 			queue_work(driver->diag_wq, &(driver->
 				diag_read_smd_wcnss_work));
 		}
@@ -313,21 +312,11 @@ int diag_device_write(void *buf, int proc_num, struct diag_request *write_ptr)
 
 void __diag_smd_wcnss_send_req(void)
 {
-	void *buf = NULL;
-	int *in_busy_wcnss_ptr = NULL;
-	struct diag_request *write_ptr_wcnss = NULL;
+	void *buf = driver->buf_in_wcnss;
+	int *in_busy_wcnss_ptr = &(driver->in_busy_wcnss);
+	struct diag_request *write_ptr_wcnss = driver->write_ptr_wcnss;
 
-	if (!driver->in_busy_wcnss_1) {
-		buf = driver->buf_in_wcnss_1;
-		write_ptr_wcnss = driver->write_ptr_wcnss_1;
-		in_busy_wcnss_ptr = &(driver->in_busy_wcnss_1);
-	} else if (!driver->in_busy_wcnss_2) {
-		buf = driver->buf_in_wcnss_2;
-		write_ptr_wcnss = driver->write_ptr_wcnss_2;
-		in_busy_wcnss_ptr = &(driver->in_busy_wcnss_2);
-	}
-
-	if (driver->ch_wcnss && buf) {
+	if ((!driver->in_busy_wcnss) && driver->ch_wcnss && buf) {
 		int r = smd_read_avail(driver->ch_wcnss);
 		if (r > IN_BUF_SIZE) {
 			if (r < MAX_IN_BUF_SIZE) {
@@ -1441,8 +1430,7 @@ int diagfwd_connect(void)
 	driver->in_busy_2 = 0;
 	driver->in_busy_qdsp_1 = 0;
 	driver->in_busy_qdsp_2 = 0;
-	driver->in_busy_wcnss_1 = 0;
-	driver->in_busy_wcnss_2 = 0;
+	driver->in_busy_wcnss = 0;
 
 	/* Poll SMD channels to check for data*/
 	queue_work(driver->diag_wq, &(driver->diag_read_smd_work));
@@ -1476,8 +1464,7 @@ int diagfwd_disconnect(void)
 		driver->in_busy_2 = 1;
 		driver->in_busy_qdsp_1 = 1;
 		driver->in_busy_qdsp_2 = 1;
-		driver->in_busy_wcnss_1 = 1;
-		driver->in_busy_wcnss_2 = 1;
+		driver->in_busy_wcnss = 1;
 	}
 #ifdef CONFIG_DIAG_SDIO_PIPE
 	if (machine_is_msm8x60_fusion() || machine_is_msm8x60_fusn_ffa())
@@ -1509,13 +1496,8 @@ int diagfwd_write_complete(struct diag_request *diag_write_ptr)
 		driver->in_busy_qdsp_2 = 0;
 		APPEND_DEBUG('P');
 		queue_work(driver->diag_wq, &(driver->diag_read_smd_qdsp_work));
-	} else if (buf == driver->buf_in_wcnss_1) {
-		driver->in_busy_wcnss_1 = 0;
-		APPEND_DEBUG('r');
-		queue_work(driver->diag_wq,
-			 &(driver->diag_read_smd_wcnss_work));
-	} else if (buf == driver->buf_in_wcnss_2) {
-		driver->in_busy_wcnss_2 = 0;
+	} else if (buf == (void *)driver->buf_in_wcnss) {
+		driver->in_busy_wcnss = 0;
 		APPEND_DEBUG('R');
 		queue_work(driver->diag_wq,
 			 &(driver->diag_read_smd_wcnss_work));
@@ -1768,17 +1750,11 @@ void diagfwd_init(void)
 		if (driver->buf_in_qdsp_2 == NULL)
 			goto err;
 	}
-	if (driver->buf_in_wcnss_1 == NULL) {
-		driver->buf_in_wcnss_1 = kzalloc(IN_BUF_SIZE, GFP_KERNEL);
-		if (driver->buf_in_wcnss_1 == NULL)
+	if (driver->buf_in_wcnss == NULL) {
+		driver->buf_in_wcnss = kzalloc(IN_BUF_SIZE, GFP_KERNEL);
+		if (driver->buf_in_wcnss == NULL)
 			goto err;
 	}
-	if (driver->buf_in_wcnss_2 == NULL) {
-		driver->buf_in_wcnss_2 = kzalloc(IN_BUF_SIZE, GFP_KERNEL);
-		if (driver->buf_in_wcnss_2 == NULL)
-			goto err;
-	}
-
 	if (driver->buf_msg_mask_update == NULL) {
 		driver->buf_msg_mask_update = kzalloc(APPS_BUF_SIZE,
 								 GFP_KERNEL);
@@ -1865,19 +1841,12 @@ void diagfwd_init(void)
 		if (driver->write_ptr_qdsp_2 == NULL)
 			goto err;
 	}
-	if (driver->write_ptr_wcnss_1 == NULL) {
-		driver->write_ptr_wcnss_1 = kzalloc(
+	if (driver->write_ptr_wcnss == NULL) {
+		driver->write_ptr_wcnss = kzalloc(
 			sizeof(struct diag_request), GFP_KERNEL);
-		if (driver->write_ptr_wcnss_1 == NULL)
+		if (driver->write_ptr_wcnss == NULL)
 			goto err;
 	}
-	if (driver->write_ptr_wcnss_2 == NULL) {
-		driver->write_ptr_wcnss_2 = kzalloc(
-			sizeof(struct diag_request), GFP_KERNEL);
-		if (driver->write_ptr_wcnss_2 == NULL)
-			goto err;
-	}
-
 	if (driver->usb_read_ptr == NULL) {
 		driver->usb_read_ptr = kzalloc(
 			sizeof(struct diag_request), GFP_KERNEL);
@@ -1923,8 +1892,7 @@ err:
 		kfree(driver->buf_in_2);
 		kfree(driver->buf_in_qdsp_1);
 		kfree(driver->buf_in_qdsp_2);
-		kfree(driver->buf_in_wcnss_1);
-		kfree(driver->buf_in_wcnss_2);
+		kfree(driver->buf_in_wcnss);
 		kfree(driver->buf_msg_mask_update);
 		kfree(driver->buf_log_mask_update);
 		kfree(driver->buf_event_mask_update);
@@ -1942,8 +1910,7 @@ err:
 		kfree(driver->write_ptr_2);
 		kfree(driver->write_ptr_qdsp_1);
 		kfree(driver->write_ptr_qdsp_2);
-		kfree(driver->write_ptr_wcnss_1);
-		kfree(driver->write_ptr_wcnss_2);
+		kfree(driver->write_ptr_wcnss);
 		kfree(driver->usb_read_ptr);
 		kfree(driver->apps_rsp_buf);
 		kfree(driver->user_space_data);
@@ -1973,8 +1940,7 @@ void diagfwd_exit(void)
 	kfree(driver->buf_in_2);
 	kfree(driver->buf_in_qdsp_1);
 	kfree(driver->buf_in_qdsp_2);
-	kfree(driver->buf_in_wcnss_1);
-	kfree(driver->buf_in_wcnss_2);
+	kfree(driver->buf_in_wcnss);
 	kfree(driver->buf_msg_mask_update);
 	kfree(driver->buf_log_mask_update);
 	kfree(driver->buf_event_mask_update);
@@ -1992,8 +1958,7 @@ void diagfwd_exit(void)
 	kfree(driver->write_ptr_2);
 	kfree(driver->write_ptr_qdsp_1);
 	kfree(driver->write_ptr_qdsp_2);
-	kfree(driver->write_ptr_wcnss_1);
-	kfree(driver->write_ptr_wcnss_2);
+	kfree(driver->write_ptr_wcnss);
 	kfree(driver->usb_read_ptr);
 	kfree(driver->apps_rsp_buf);
 	kfree(driver->user_space_data);
