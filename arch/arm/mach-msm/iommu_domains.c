@@ -13,7 +13,6 @@
 #include <mach/msm_subsystem_map.h>
 #include <linux/memory_alloc.h>
 #include <linux/iommu.h>
-#include <linux/vmalloc.h>
 #include <asm/sizes.h>
 #include <asm/page.h>
 #include <linux/init.h>
@@ -168,32 +167,33 @@ int msm_iommu_map_extra(struct iommu_domain *domain,
 				unsigned long size,
 				int cached)
 {
-	int i, ret = 0;
-	struct scatterlist *sglist;
-	unsigned int nrpages = PFN_ALIGN(size) >> PAGE_SHIFT;
-	struct page *dummy_page = phys_to_page(
-					PFN_ALIGN(virt_to_phys(iommu_dummy)));
+	int i, ret;
+	unsigned long temp_iova;
 
-	sglist = vmalloc(sizeof(*sglist) * nrpages);
-	if (!sglist) {
-		ret = -ENOMEM;
-		goto err1;
+	for (i = size, temp_iova = start_iova; i > 0; i -= SZ_4K,
+						temp_iova += SZ_4K) {
+		ret = iommu_map(domain, temp_iova,
+				PFN_ALIGN(virt_to_phys(iommu_dummy)),
+				get_order(SZ_4K),
+				0);
+
+		if (ret) {
+			pr_err("%s: could not map %lx to dummy page in domain"
+				" %p\n",
+				__func__, temp_iova, domain);
+			goto out;
+		}
 	}
 
-	sg_init_table(sglist, nrpages);
+	return 0;
 
-	for (i = 0; i < nrpages; i++)
-		sg_set_page(&sglist[i], dummy_page, PAGE_SIZE, 0);
+out:
 
-	ret = iommu_map_range(domain, start_iova, sglist, size, cached);
-	if (ret) {
-		pr_err("%s: could not map extra %lx in domain %p\n",
-			__func__, start_iova, domain);
-	}
+	for ( ; i < size; i += SZ_4K, temp_iova -= SZ_4K)
+		iommu_unmap(domain, temp_iova, get_order(SZ_4K));
 
-	vfree(sglist);
-err1:
-	return ret;
+	return -EINVAL;
+
 }
 
 

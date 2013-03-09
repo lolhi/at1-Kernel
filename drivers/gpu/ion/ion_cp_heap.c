@@ -293,7 +293,8 @@ static void ion_cp_heap_free(struct ion_buffer *buffer)
 	buffer->priv_phys = ION_CP_ALLOCATE_FAIL;
 }
 
-struct scatterlist *ion_cp_heap_create_sglist(struct ion_buffer *buffer)
+struct scatterlist *ion_cp_heap_map_dma(struct ion_heap *heap,
+					      struct ion_buffer *buffer)
 {
 	struct scatterlist *sglist;
 
@@ -307,12 +308,6 @@ struct scatterlist *ion_cp_heap_create_sglist(struct ion_buffer *buffer)
 	sglist->dma_address = buffer->priv_phys;
 
 	return sglist;
-}
-
-struct scatterlist *ion_cp_heap_map_dma(struct ion_heap *heap,
-					      struct ion_buffer *buffer)
-{
-	return ion_cp_heap_create_sglist(buffer);
 }
 
 void ion_cp_heap_unmap_dma(struct ion_heap *heap,
@@ -564,6 +559,7 @@ int ion_cp_unsecure_heap(struct ion_heap *heap)
 	mutex_unlock(&cp_heap->lock);
 	return ret_value;
 }
+
 
 static struct ion_heap_ops cp_heap_ops = {
 	.allocate = ion_cp_heap_allocate,
