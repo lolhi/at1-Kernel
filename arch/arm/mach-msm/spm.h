@@ -115,7 +115,6 @@ int msm_spm_turn_on_cpu_rail(unsigned int cpu);
 #if defined(CONFIG_MSM_L2_SPM)
 int msm_spm_l2_set_low_power_mode(unsigned int mode, bool notify_rpm);
 int msm_spm_l2_init(struct msm_spm_platform_data *data);
-void msm_spm_l2_reinit(void);
 #else
 static inline int msm_spm_l2_set_low_power_mode(unsigned int mode,
 		bool notify_rpm)
@@ -125,10 +124,6 @@ static inline int msm_spm_l2_set_low_power_mode(unsigned int mode,
 static inline int msm_spm_l2_init(struct msm_spm_platform_data *data)
 {
 	return -ENOSYS;
-}
-static inline void msm_spm_l2_reinit(void)
-{
-	/* empty */
 }
 #endif /* defined(CONFIG_MSM_L2_SPM) */
 

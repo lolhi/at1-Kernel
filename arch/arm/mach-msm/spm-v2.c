@@ -290,17 +290,6 @@ set_vdd_bail:
 	return -EIO;
 }
 
-void msm_spm_drv_reinit(struct msm_spm_driver_data *dev)
-{
-	int i;
-
-	for (i = 0; i < MSM_SPM_REG_NR_INITIALIZE; i++)
-		msm_spm_drv_flush_shadow(dev, i);
-
-	msm_spm_drv_flush_seq_entry(dev);
-	mb();
-}
-
 int __init msm_spm_drv_init(struct msm_spm_driver_data *dev,
 		struct msm_spm_platform_data *data)
 {
