@@ -255,7 +255,6 @@ int mdp4_dtv_off(struct platform_device *pdev)
 		mdp4_mixer_stage_down(dtv_pipe);
 		mdp4_dtv_stop(mfd);
 		mdp4_overlay_pipe_free(dtv_pipe);
-		mdp4_iommu_unmap(dtv_pipe);
 		dtv_pipe = NULL;
 		msleep(20);
 	}
@@ -627,6 +626,5 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	}
 	mdp4_mixer_stage_up(pipe);
 	mdp4_overlay_dtv_ov_done_push(mfd, pipe);
-	mdp4_iommu_unmap(pipe);
 	mutex_unlock(&mfd->dma->ov_mutex);
 }
