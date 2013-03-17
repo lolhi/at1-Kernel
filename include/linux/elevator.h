@@ -82,6 +82,8 @@ struct elevator_type
 	struct list_head list;
 	struct elevator_ops ops;
 	struct elv_fs_entry *elevator_attrs;
+	size_t icq_size;	/* see iocontext.h */
+	size_t icq_align;	/* ditto */
 	char elevator_name[ELV_NAME_MAX];
 	struct module *elevator_owner;
 };
