@@ -293,5 +293,3 @@ extern struct platform_device msm_device_csic0;
 extern struct platform_device msm_device_csic1;
 extern struct platform_device msm_device_vfe;
 extern struct platform_device msm_device_vpe;
-
-extern struct platform_device msm8x60_device_acpuclk;
