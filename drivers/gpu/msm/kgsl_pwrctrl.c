@@ -21,6 +21,10 @@
 #include "kgsl_device.h"
 #include "kgsl_trace.h"
 
+#ifdef CONFIG_KGSL_GPU_CTRL
+#include <linux/gpu_freq.h>
+#endif
+
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
