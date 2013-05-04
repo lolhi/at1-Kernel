@@ -797,6 +797,8 @@ static void max17040_quick_get_soc(void)
 	int avalue=0;
 	//unsigned long quick_soc;
 	int i=0;
+	bool completed = false;
+	while (!completed) {
 	dbg_func_in();
 	msb = max17040_read_reg(MAX17040_SOC_MSB);
 	lsb = max17040_read_reg(MAX17040_SOC_LSB);
@@ -825,10 +827,17 @@ static void max17040_quick_get_soc(void)
 	mutex_lock(&max17040_data.data_mutex); 	
 	max17040_data.quick_data.soc_msb=msb;	
 	max17040_data.quick_data.soc_lsb=lsb;
-	if(i==MAX_READ)	
-	max17040_data.quick_data.quick_soc=0;			
-	else
-	max17040_data.quick_data.quick_soc=avalue;	
+	if(i==MAX_READ)	 {
+	max17040_data.quick_data.quick_soc=0;
+	mutex_unlock(&max17040_data.data_mutex);
+	printk("Re-running to check battery!!!\n");
+	i = 0;			
+	} else {
+	max17040_data.quick_data.quick_soc=avalue;
+	  completed = true;
+	  break;
+	 }
+	} 	
 	mutex_unlock(&max17040_data.data_mutex);
 	dbg_func_out();		
 }
@@ -840,7 +849,9 @@ static void max17040_quick_get_vcell(void)
 	unsigned long quick_avalue;
 	//unsigned long temp;	
 	unsigned long voltage=0;
-	int i=0;	
+	int i=0;
+	bool completed = false;
+	while (!completed) {	
 	msb = max17040_read_reg(MAX17040_VCELL_MSB);
 	lsb = max17040_read_reg(MAX17040_VCELL_LSB);
 	if(msb < 0 || lsb < 0)
@@ -864,12 +875,19 @@ static void max17040_quick_get_vcell(void)
 	mutex_lock(&max17040_data.data_mutex); 	
 	max17040_data.quick_data.vcell_msb = msb;	
 	max17040_data.quick_data.vcell_lsb = lsb;		
-	if(i==MAX_READ)
-	max17040_data.quick_data.quick_vcell = 33996;	
-	else
-	max17040_data.quick_data.quick_vcell = quick_avalue;	
+	if(i==MAX_READ) {
+	max17040_data.quick_data.quick_vcell = 33996;
+	mutex_unlock(&max17040_data.data_mutex);
+	printk("Re-running to check battery!!!\n");
+	i = 0;
+	continue;	
+	} else {
+	max17040_data.quick_data.quick_vcell = quick_avalue;
+	  completed = true;
+	  break;
+	 }
+	}	
 	mutex_unlock(&max17040_data.data_mutex);	
-
 }
 //ps2 team shs : test code
 #ifdef MAX17040_DEBUG_QUICK	
