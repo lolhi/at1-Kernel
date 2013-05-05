@@ -466,7 +466,6 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
 	cic->cfqq[is_sync] = cfqq;
 }
 
-<<<<<<< HEAD
 #define CIC_DEAD_KEY	1ul
 #define CIC_DEAD_INDEX_SHIFT	1
 
@@ -475,11 +474,14 @@ static inline void *cfqd_dead_key(struct cfq_data *cfqd)
 	return (void *)(cfqd->cic_index << CIC_DEAD_INDEX_SHIFT | CIC_DEAD_KEY);
 }
 
-=======
->>>>>>> 1238033... block, cfq: kill cic->key
 static inline struct cfq_data *cic_to_cfqd(struct cfq_io_context *cic)
 {
-	return cic->q->elevator->elevator_data;
+	struct cfq_data *cfqd = cic->key;
+
+	if (unlikely((unsigned long) cfqd & CIC_DEAD_KEY))
+		return NULL;
+
+	return cfqd;
 }
 
 /*
@@ -2698,15 +2700,11 @@ static void cfq_cic_free(struct cfq_io_context *cic)
 static void cfq_release_cic(struct cfq_io_context *cic)
 {
 	struct io_context *ioc = cic->ioc;
+	unsigned long dead_key = (unsigned long) cic->key;
 
-<<<<<<< HEAD
 	BUG_ON(!(dead_key & CIC_DEAD_KEY));
 	radix_tree_delete(&ioc->radix_root, dead_key >> CIC_DEAD_INDEX_SHIFT);
 	hlist_del_rcu(&cic->cic_list);
-=======
-	radix_tree_delete(&ioc->radix_root, cic->q->id);
-	hlist_del(&cic->cic_list);
->>>>>>> 1238033... block, cfq: kill cic->key
 	cfq_cic_free(cic);
 }
 
@@ -3064,7 +3062,6 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 static struct cfq_io_context *
 cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
-	struct request_queue *q = cfqd->queue;
 	struct cfq_io_context *cic;
 	unsigned long flags;
 
@@ -3077,7 +3074,7 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 	 * we maintain a last-hit cache, to avoid browsing over the tree
 	 */
 	cic = rcu_dereference(ioc->ioc_data);
-	if (cic && cic->q == q) {
+	if (cic && cic->key == cfqd) {
 		rcu_read_unlock();
 		return cic;
 	}
@@ -3087,7 +3084,7 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 		rcu_read_unlock();
 		if (!cic)
 			break;
-		if (unlikely(cic->q != q)) {
+		if (unlikely(cic->key != cfqd)) {
 			cfq_drop_dead_cic(cfqd, ioc, cic);
 			rcu_read_lock();
 			continue;
@@ -3114,6 +3111,7 @@ static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
 	int ret;
 
 	cic->ioc = ioc;
+	cic->key = cfqd;
 	cic->q = cfqd->queue;
 
 	ret = radix_tree_preload(gfp_mask);
