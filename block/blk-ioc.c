@@ -46,7 +46,7 @@ EXPORT_SYMBOL(get_io_context);
 
 /*
  * Slow path for ioc release in put_io_context().  Performs double-lock
- * dancing to unlink all icq's and then frees ioc.
+ * dancing to unlink all cic's and then frees ioc.
  */
 static void ioc_release_fn(struct work_struct *work)
 {
@@ -56,10 +56,11 @@ static void ioc_release_fn(struct work_struct *work)
 
 	spin_lock_irq(&ioc->lock);
 
-	while (!hlist_empty(&ioc->icq_list)) {
-		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
-						struct io_cq, ioc_node);
-		struct request_queue *this_q = icq->q;
+	while (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic = hlist_entry(ioc->cic_list.first,
+							 struct cfq_io_context,
+							 cic_list);
+		struct request_queue *this_q = cic->q;
 
 		if (this_q != last_q) {
 			/*
@@ -88,8 +89,8 @@ static void ioc_release_fn(struct work_struct *work)
 			continue;
 		}
 		ioc_release_depth_inc(this_q);
-		icq->exit(icq);
-		icq->release(icq);
+		cic->exit(cic);
+		cic->release(cic);
 		ioc_release_depth_dec(this_q);
 	}
 
@@ -130,10 +131,10 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 		return;
 
 	/*
-	 * Destroy @ioc.  This is a bit messy because icq's are chained
+	 * Destroy @ioc.  This is a bit messy because cic's are chained
 	 * from both ioc and queue, and ioc->lock nests inside queue_lock.
-	 * The inner ioc->lock should be held to walk our icq_list and then
-	 * for each icq the outer matching queue_lock should be grabbed.
+	 * The inner ioc->lock should be held to walk our cic_list and then
+	 * for each cic the outer matching queue_lock should be grabbed.
 	 * ie. We need to do reverse-order double lock dancing.
 	 *
 	 * Another twist is that we are often called with one of the
@@ -152,10 +153,11 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 	spin_lock_irqsave_nested(&ioc->lock, flags,
 				 ioc_release_depth(locked_q));
 
-	while (!hlist_empty(&ioc->icq_list)) {
-		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
-						struct io_cq, ioc_node);
-		struct request_queue *this_q = icq->q;
+	while (!hlist_empty(&ioc->cic_list)) {
+		struct cfq_io_context *cic = hlist_entry(ioc->cic_list.first,
+							 struct cfq_io_context,
+							 cic_list);
+		struct request_queue *this_q = cic->q;
 
 		if (this_q != last_q) {
 			if (last_q && last_q != locked_q)
@@ -168,8 +170,8 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 			continue;
 		}
 		ioc_release_depth_inc(this_q);
-		icq->exit(icq);
-		icq->release(icq);
+		cic->exit(cic);
+		cic->release(cic);
 		ioc_release_depth_dec(this_q);
 	}
 
@@ -178,8 +180,8 @@ void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
 
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
-	/* if no icq is left, we're done; otherwise, kick release_work */
-	if (hlist_empty(&ioc->icq_list))
+	/* if no cic's left, we're done; otherwise, kick release_work */
+	if (hlist_empty(&ioc->cic_list))
 		kmem_cache_free(iocontext_cachep, ioc);
 	else
 		schedule_work(&ioc->release_work);
@@ -207,7 +209,6 @@ static struct io_context *create_task_io_context(struct task_struct *task,
 						 gfp_t gfp_flags, int node,
 						 bool take_ref)
 {
-<<<<<<< HEAD
 	struct io_context *ret;
 
 	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
@@ -227,23 +228,6 @@ static struct io_context *create_task_io_context(struct task_struct *task,
 		ret->cgroup_changed = 0;
 #endif
 	}
-=======
-	struct io_context *ioc;
-
-	ioc = kmem_cache_alloc_node(iocontext_cachep, gfp_flags | __GFP_ZERO,
-				    node);
-
-	if (unlikely(!ioc))
-		return;
-
-	/* initialize */
-	atomic_long_set(&ioc->refcount, 1);
-	atomic_set(&ioc->nr_tasks, 1);
-	spin_lock_init(&ioc->lock);
-	INIT_RADIX_TREE(&ioc->icq_tree, GFP_ATOMIC | __GFP_HIGH);
-	INIT_HLIST_HEAD(&ioc->icq_list);
-	INIT_WORK(&ioc->release_work, ioc_release_fn);
->>>>>>> f392b9f... block, cfq: reorganize cfq_io_context into generic and cfq specific parts
 
 	/* try to install, somebody might already have beaten us to it */
 	task_lock(task);
@@ -316,11 +300,11 @@ EXPORT_SYMBOL(get_task_io_context);
 
 void ioc_set_changed(struct io_context *ioc, int which)
 {
-	struct io_cq *icq;
+	struct cfq_io_context *cic;
 	struct hlist_node *n;
 
-	hlist_for_each_entry(icq, n, &ioc->icq_list, ioc_node)
-		set_bit(which, &icq->changed);
+	hlist_for_each_entry(cic, n, &ioc->cic_list, cic_list)
+		set_bit(which, &cic->changed);
 }
 
 /**
@@ -328,8 +312,8 @@ void ioc_set_changed(struct io_context *ioc, int which)
  * @ioc: io_context of interest
  * @ioprio: new ioprio
  *
- * @ioc's ioprio has changed to @ioprio.  Set %ICQ_IOPRIO_CHANGED for all
- * icq's.  iosched is responsible for checking the bit and applying it on
+ * @ioc's ioprio has changed to @ioprio.  Set %CIC_IOPRIO_CHANGED for all
+ * cic's.  iosched is responsible for checking the bit and applying it on
  * request issue path.
  */
 void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
@@ -338,7 +322,7 @@ void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
 
 	spin_lock_irqsave(&ioc->lock, flags);
 	ioc->ioprio = ioprio;
-	ioc_set_changed(ioc, ICQ_IOPRIO_CHANGED);
+	ioc_set_changed(ioc, CIC_IOPRIO_CHANGED);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
@@ -346,7 +330,7 @@ void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
  * ioc_cgroup_changed - notify cgroup change
  * @ioc: io_context of interest
  *
- * @ioc's cgroup has changed.  Set %ICQ_CGROUP_CHANGED for all icq's.
+ * @ioc's cgroup has changed.  Set %CIC_CGROUP_CHANGED for all cic's.
  * iosched is responsible for checking the bit and applying it on request
  * issue path.
  */
@@ -355,7 +339,7 @@ void ioc_cgroup_changed(struct io_context *ioc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->lock, flags);
-	ioc_set_changed(ioc, ICQ_CGROUP_CHANGED);
+	ioc_set_changed(ioc, CIC_CGROUP_CHANGED);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 

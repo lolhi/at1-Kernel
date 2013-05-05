@@ -54,12 +54,13 @@ static const int cfq_hist_divisor = 4;
 #define CFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
 #define CFQQ_SEEKY(cfqq)	(hweight32(cfqq->seek_history) > 32/8)
 
-#define RQ_CIC(rq)		icq_to_cic((rq)->elevator_private[0])
+#define RQ_CIC(rq)		\
+	((struct cfq_io_context *) (rq)->elevator_private[0])
 #define RQ_CFQQ(rq)		(struct cfq_queue *) ((rq)->elevator_private[1])
 #define RQ_CFQG(rq)		(struct cfq_group *) ((rq)->elevator_private[2])
 
 static struct kmem_cache *cfq_pool;
-static struct kmem_cache *cfq_icq_pool;
+static struct kmem_cache *cfq_ioc_pool;
 
 static DEFINE_PER_CPU(unsigned long, cfq_ioc_count);
 static struct completion *ioc_gone;
@@ -74,14 +75,6 @@ static DEFINE_IDA(cic_index_ida);
 
 #define sample_valid(samples)	((samples) > 80)
 #define rb_entry_cfqg(node)	rb_entry((node), struct cfq_group, rb_node)
-
-struct cfq_ttime {
-	unsigned long last_end_request;
-
-	unsigned long ttime_total;
-	unsigned long ttime_samples;
-	unsigned long ttime_mean;
-};
 
 /*
  * Most of our rbtree usage is for sorting with min extraction, so
@@ -222,12 +215,6 @@ struct cfq_group {
 	int dispatched;
 };
 
-struct cfq_io_cq {
-	struct io_cq		icq;		/* must be the first member */
-	struct cfq_queue	*cfqq[2];
-	struct cfq_ttime	ttime;
-};
-
 /*
  * Per block device queue structure
  */
@@ -279,7 +266,7 @@ struct cfq_data {
 	struct work_struct unplug_work;
 
 	struct cfq_queue *active_queue;
-	struct cfq_io_cq *active_cic;
+	struct cfq_io_context *active_cic;
 
 	/*
 	 * async queue for each priority case
@@ -303,7 +290,7 @@ struct cfq_data {
 	unsigned int cfq_latency;
 
 	unsigned int cic_index;
-	struct list_head icq_list;
+	struct list_head cic_list;
 
 	/*
 	 * Fallback dummy cfqq for extreme OOM conditions
@@ -464,7 +451,8 @@ static inline int cfqg_busy_async_queues(struct cfq_data *cfqd,
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *, bool,
 				       struct io_context *, gfp_t);
-static struct cfq_io_cq *cfq_cic_lookup(struct cfq_data *, struct io_context *);
+static struct cfq_io_context *cfq_cic_lookup(struct cfq_data *,
+						struct io_context *);
 
 static inline struct cfq_queue *cic_to_cfqq(struct cfq_io_context *cic,
 					    bool is_sync)
