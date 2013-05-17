@@ -61,6 +61,7 @@ WLANOFILES := \
 	shared/sbutils.o \
 	shared/siutils.o \
 	wl/sys/wl_iw.o
+CFLAGS_wl_iw.o = -Wno-array-bounds
 
 
 ifeq ($(CONFIG_BCM4329_DEBUG),y)
