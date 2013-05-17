@@ -902,21 +902,6 @@ struct sched_group_power {
 	 * single CPU.
 	 */
 	unsigned int power, power_orig;
-<<<<<<< HEAD
-=======
-	unsigned long next_update;
-	/*
-	 * Compute capacity of this group, where each CPU has a compute
-	 * capacity expressed as a value [0..SCHED_POWER_SCALE] against
-	 * the most powerful CPU in the system of capacity SCHED_POWER_SCALE.
-	 */
-	unsigned int compute_capacity;
-	unsigned int max_compute_capacity;
-	/*
-	 * Number of busy cpus in this group.
-	 */
-	atomic_t nr_busy_cpus;
->>>>>>> 1f22af9... sched: introduce compute capacity for CPUs, groups and domains
 };
 
 struct sched_group {
