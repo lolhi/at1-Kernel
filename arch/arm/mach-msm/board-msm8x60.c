@@ -200,7 +200,6 @@ static struct platform_device ion_dev;
 #ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
 int id_set_two_phase_freq(int cpufreq);
 #endif
-#endif
 
 enum {
 	GPIO_EXPANDER_IRQ_BASE  = PM8901_IRQ_BASE + NR_PMIC8901_IRQS,
@@ -12639,7 +12638,6 @@ static void __init msm8x60_init(struct msm_board_data *board_data)
 
 #ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
 	id_set_two_phase_freq(1134000);
-#endif
 #endif
 
 	msm8x60_init_tlmm();

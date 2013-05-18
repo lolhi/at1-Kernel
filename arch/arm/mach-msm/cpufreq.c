@@ -334,10 +334,6 @@ static struct cpufreq_driver msm_cpufreq_driver = {
 	.attr		= msm_freq_attr,
 };
 
-static struct notifier_block msm_cpufreq_pm_notifier = {
-	.notifier_call = msm_cpufreq_pm_event,
-};
-
 static int __init msm_cpufreq_register(void)
 {
 	int cpu;
@@ -356,11 +352,8 @@ static int __init msm_cpufreq_register(void)
 	msm_cpufreq_wq = create_workqueue("msm-cpufreq");
 #endif
 
-<<<<<<< HEAD
-	register_pm_notifier(&msm_cpufreq_pm_notifier);
 	register_early_suspend(&msm_cpu_early_suspend_handler);
-=======
->>>>>>> f873232... msm: cpufreq: Implement suspend/resume for cpufreq driver
+
 	return cpufreq_register_driver(&msm_cpufreq_driver);
 }
 
