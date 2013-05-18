@@ -220,12 +220,6 @@ config INTELLI_MAX_INACTIVE_FREQ
 	help
 		Set default max inactive frequency for intellidemand
 
-config CPU_FREQ_GOV_ONDEMAND_2_PHASE
-	tristate "'2-phase' power-efficiency ondemand algorithm"
-	depends on CPU_FREQ_GOV_ONDEMAND || CPU_FREQ_GOV_INTELLIDEMAND
-	help
-	  '2-phase' - This driver adds a new algo to save power
-
 config CPUFREQ_LIMIT_MAX_FREQ
 	bool "Limit Max Freq"
 	depends on CPU_FREQ_GOV_INTELLIDEMAND
