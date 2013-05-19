@@ -13,7 +13,6 @@ CFLAGS_cpufreq_ondemand.o = -Wno-unused-variable
 obj-$(CONFIG_CPU_FREQ_GOV_CONSERVATIVE)	+= cpufreq_conservative.o
 obj-$(CONFIG_CPU_FREQ_GOV_INTERACTIVE)	+= cpufreq_interactive.o
 obj-$(CONFIG_CPU_FREQ_GOV_INTELLIDEMAND)+= cpufreq_intellidemand.o
-CFLAGS_cpufreq_intellidemand.o = -Wno-unused-variable
 obj-$(CONFIG_CPU_FREQ_GOV_LULZACTIVE)	+= cpufreq_lulzactive.o
 
 # CPUfreq cross-arch helpers
