@@ -60,10 +60,11 @@
 #define BOOSTED_SAMPLING_RATE			(15000)
 #define DBS_INPUT_EVENT_MIN_FREQ		(1026000)
 #define DBS_SYNC_FREQ				(702000)
-#define DBS_OPTIMAL_FREQ			(1296000)
+#define DBS_OPTIMAL_FREQ			(1350000)
 #define MAX_FREQ_LIMIT				(1512000)
 
 static u64 freq_boosted_time;
+
 /*
  * The polling frequency of this governor depends on the capability of
  * the processor. Default polling frequency is 1000 times the transition
@@ -1216,6 +1217,8 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	}
 }
 
+bool id_gov_screen_state = true;
+
 #ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 
 enum {	
@@ -1240,7 +1243,6 @@ enum {
 #define NUM_INACTIVE_LOAD_ARRAY	(INACTIVE_DURATION_MSEC/SAMPLE_DURATION_MSEC)
 
 bool lmf_browsing_state = true;
-bool lmf_screen_state = true;
 
 static unsigned long lmf_active_max_limit = ACTIVE_MAX_FREQ;
 static unsigned long lmf_inactive_max_limit = INACTIVE_MAX_FREQ;
@@ -1315,7 +1317,39 @@ unsigned long get_lmf_inactive_load(void)
 }
 #endif
 
+<<<<<<< HEAD
+=======
+#define NR_FSHIFT	1
+static unsigned int nr_run_thresholds[] = {
+/* 	1,  2 - on-line cpus target */
+	3,  UINT_MAX /* avg run threads * 2 (e.g., 9 = 2.25 threads) */
+	};
+
+static unsigned int nr_run_hysteresis = 8;  /* 0.5 thread */
+static unsigned int nr_run_last;
+
+static unsigned int calculate_thread_stats (void)
+{
+	unsigned int avg_nr_run = avg_nr_running();
+	unsigned int nr_run;
+
+	for (nr_run = 1; nr_run < ARRAY_SIZE(nr_run_thresholds); nr_run++) {
+		unsigned int nr_threshold = nr_run_thresholds[nr_run - 1];
+		if (nr_run_last <= nr_run)
+			nr_threshold += nr_run_hysteresis;
+		if (avg_nr_run <= (nr_threshold << (FSHIFT - NR_FSHIFT)))
+			break;
+	}
+	nr_run_last = nr_run;
+
+	return nr_run;
+}
+
+static unsigned int persist_count = 0;
+#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
+>>>>>>> 2dacd3f... intellidemand: minor clean up and fix up for LMF compilation issues
 static unsigned int rq_persist_count = 0;
+#endif
 
 static void do_dbs_timer(struct work_struct *work)
 {
@@ -1331,6 +1365,31 @@ static void do_dbs_timer(struct work_struct *work)
 	policy = dbs_info->cur_policy;
 #endif
 
+<<<<<<< HEAD
+=======
+#if 1
+	if (cpu == BOOT_CPU && id_gov_screen_state) {
+		switch (nr_run_stat) {
+			case 1:
+				if (persist_count > 0)
+					persist_count--;
+
+				if (num_online_cpus() == 2 && persist_count == 0)
+					cpu_down(1);
+				break;
+			case 2:
+				persist_count = 8;
+				if (num_online_cpus() == 1)
+					cpu_up(1);
+				break;
+			default:
+				pr_err("Run Stat Error: Bad value %u\n", nr_run_stat);
+				break;
+		}
+	}
+#endif
+#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
+>>>>>>> 2dacd3f... intellidemand: minor clean up and fix up for LMF compilation issues
 	if (num_online_cpus() == 2 && rq_info.rq_avg > 38)
 		rq_persist_count++;
 	else
@@ -1344,10 +1403,16 @@ static void do_dbs_timer(struct work_struct *work)
 	}
 	else
 		lmf_browsing_state = true;
+<<<<<<< HEAD
 
 	//pr_info("Run Queue Average: %u\n", rq_info.rq_avg);
 
 	if (!lmf_browsing_state && lmf_screen_state)
+=======
+	//pr_info("Run Queue Average: %u\n", rq_info.rq_avg);
+
+	if (!lmf_browsing_state && id_gov_screen_state)
+>>>>>>> 2dacd3f... intellidemand: minor clean up and fix up for LMF compilation issues
 	{
 		if (cpu == BOOT_CPU)
 		{
@@ -1380,7 +1445,7 @@ static void do_dbs_timer(struct work_struct *work)
 			active_state = true;
 		}
 	}
-	else if (lmf_browsing_state && lmf_screen_state) // lmf_browsing_state -> TRUE
+	else if (lmf_browsing_state && id_gov_screen_state) // lmf_browsing_state -> TRUE
 	{
 		struct cpufreq_policy *policy;
 		unsigned long load_state_cpu = 0;
