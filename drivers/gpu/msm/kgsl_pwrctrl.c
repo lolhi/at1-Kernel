@@ -343,7 +343,6 @@ static void kgsl_pwrctrl_busy_time(struct kgsl_device *device, bool on_time)
 		gpu_busy_state = true;
 	else
 		gpu_busy_state = false;
-	}
 #endif
 }
 
