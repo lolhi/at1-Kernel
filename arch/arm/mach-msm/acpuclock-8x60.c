@@ -1153,23 +1153,6 @@ static struct acpuclk_data acpuclk_8x60_data = {
 	.wait_for_irq_khz = MAX_AXI,
 };
 
-<<<<<<< HEAD
-=======
-int processor_name_read_proc(char *page, char **start, off_t off,
-			   int count, int *eof, void *data)
-{
-	char *p = page;
-	if (cmdline_maxkhz) {
-		p += sprintf(p, "%u", (cmdline_maxkhz/1000));
-		p += sprintf(p, "MHz x2 - Bricked");
-	} else {
-		p += sprintf(p, "%u", (CONFIG_MSM_CPU_FREQ_MAX/1000));
-		p += sprintf(p, "MHz x2 - Bricked");
-	}
-	return p - page;
-}
-
->>>>>>> 44ad49d... cmdline_khz: set cpuinfo depending on clockspeed
 static int __init acpuclk_8x60_init(struct acpuclk_soc_data *soc_data)
 {
 	struct clkctl_acpu_speed *max_freq;
