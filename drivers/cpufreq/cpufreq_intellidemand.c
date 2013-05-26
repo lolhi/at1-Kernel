@@ -1222,6 +1222,16 @@ bool id_gov_screen_state = true;
 
 #ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 
+enum {	
+	SET_MIN = 0,	
+	SET_MAX
+};
+
+enum {	
+	BOOT_CPU = 0,	
+	NON_BOOT_CPU
+};
+
 #define SAMPLE_DURATION_MSEC	(10*1000) // 10 secs >= 10000 msec
 #define ACTIVE_DURATION_MSEC	(3*60*1000) // 3 mins
 #define INACTIVE_DURATION_MSEC	(1*60*1000) // 1 mins
