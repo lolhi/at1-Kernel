@@ -227,21 +227,14 @@ static int __cpuinit msm_cpufreq_init(struct cpufreq_policy *policy)
 }
 
 #ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
-extern bool id_gov_screen_state;
+extern bool lmf_screen_state;
 #endif
 
 static void msm_cpu_early_suspend(struct early_suspend *h)
 {
 
-#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
-	int cpu = 0;
-
-	for_each_possible_cpu(cpu) {
-
-		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
-		id_gov_screen_state = false;
-		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
-	}
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
+	lmf_screen_state = false;
 #endif
 
 }
@@ -249,15 +242,8 @@ static void msm_cpu_early_suspend(struct early_suspend *h)
 static void msm_cpu_late_resume(struct early_suspend *h)
 {
 
-#ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
-	int cpu = 0;
-
-	for_each_possible_cpu(cpu) {
-
-		mutex_lock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
-		id_gov_screen_state = true;
-		mutex_unlock(&per_cpu(cpufreq_suspend, cpu).suspend_mutex);
-	}
+#ifdef CONFIG_CPU_FREQ_GOV_INTELLIDEMAND
+	lmf_screen_state = true;
 #endif
 
 }
