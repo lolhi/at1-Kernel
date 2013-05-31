@@ -1318,33 +1318,6 @@ unsigned long get_lmf_inactive_load(void)
 }
 #endif
 
-#define NR_FSHIFT	1
-static unsigned int nr_run_thresholds[] = {
-/* 	1,  2 - on-line cpus target */
-	3,  UINT_MAX /* avg run threads * 2 (e.g., 9 = 2.25 threads) */
-	};
-
-static unsigned int nr_run_hysteresis = 8;  /* 0.5 thread */
-static unsigned int nr_run_last;
-
-static unsigned int calculate_thread_stats (void)
-{
-	unsigned int avg_nr_run = avg_nr_running();
-	unsigned int nr_run;
-
-	for (nr_run = 1; nr_run < ARRAY_SIZE(nr_run_thresholds); nr_run++) {
-		unsigned int nr_threshold = nr_run_thresholds[nr_run - 1];
-		if (nr_run_last <= nr_run)
-			nr_threshold += nr_run_hysteresis;
-		if (avg_nr_run <= (nr_threshold << (FSHIFT - NR_FSHIFT)))
-			break;
-	}
-	nr_run_last = nr_run;
-
-	return nr_run;
-}
-
-static unsigned int persist_count = 0;
 #ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 static unsigned int rq_persist_count = 0;
 #endif
@@ -1357,32 +1330,7 @@ static void do_dbs_timer(struct work_struct *work)
 	int sample_type = dbs_info->sample_type;
 
 	int delay;
-	unsigned int nr_run_stat;
 
-	nr_run_stat = calculate_thread_stats();
-	//pr_info("run stats: %u\n", nr_run_stat);
-
-#if 1
-	if (cpu == BOOT_CPU && id_gov_screen_state) {
-		switch (nr_run_stat) {
-			case 1:
-				if (persist_count > 0)
-					persist_count--;
-
-				if (num_online_cpus() == 2 && persist_count == 0)
-					cpu_down(1);
-				break;
-			case 2:
-				persist_count = 8;
-				if (num_online_cpus() == 1)
-					cpu_up(1);
-				break;
-			default:
-				pr_err("Run Stat Error: Bad value %u\n", nr_run_stat);
-				break;
-		}
-	}
-#endif
 #ifdef CONFIG_CPUFREQ_LIMIT_MAX_FREQ
 	if (num_online_cpus() == 2 && rq_info.rq_avg > 38)
 		rq_persist_count++;
@@ -1406,12 +1354,6 @@ static void do_dbs_timer(struct work_struct *work)
 			{
 				pr_warn("LMF: disabled!\n");
 				lmf_old_state = false;
-#if 0
-				/* wake up the 2nd core */
-				if (num_online_cpus() < 2)
-					cpu_up(1);
-#endif
-
 			}
 
 			if (!active_state)
@@ -1525,11 +1467,7 @@ static void do_dbs_timer(struct work_struct *work)
 								msecs_limit_total = 0;
 								load_limit_index = 0;
 								active_state = false;
-#if 0
-								/* wake up the 2nd core */
-								if (num_online_cpus() < 2)
-									cpu_up(1);
-#endif
+
 								/* set freq to 1.0GHz */
 								pr_info("LMF: CPU0 set max freq to: %lu\n", lmf_inactive_max_limit);
 								cpufreq_set_limits(BOOT_CPU, SET_MAX, lmf_inactive_max_limit);
@@ -1543,11 +1481,6 @@ static void do_dbs_timer(struct work_struct *work)
 							else
 							{
 								msecs_limit_total = ACTIVE_DURATION_MSEC; // to prevent overflow
-#if 0
-								/* take 2nd core offline */
-								if (num_online_cpus() > 1)
-									cpu_down(1);
-#endif
 
 							}
 						}
