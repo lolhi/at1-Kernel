@@ -1686,7 +1686,7 @@ void dbs_synchronize(struct work_struct *work)
 	get_online_cpus();
 
 	/* Getting source cpu info  */
-	src_dbs_info = &per_cpu(id_cpu_dbs_info, src_cpu);
+	src_dbs_info = &per_cpu(od_cpu_dbs_info, src_cpu);
 	if (src_dbs_info != NULL && src_dbs_info->cur_policy != NULL) {
 		src_freq = src_dbs_info->cur_policy->cur;
 		src_max_load = src_dbs_info->max_load;
@@ -1698,7 +1698,7 @@ void dbs_synchronize(struct work_struct *work)
 	if (lock_policy_rwsem_write(cpu) < 0)
 		goto bail_acq_sema_failed;
 
-	this_dbs_info = &per_cpu(id_cpu_dbs_info, cpu);
+	this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 	policy = this_dbs_info->cur_policy;
 	if (!policy) {
 		/* CPU not using ondemand governor */
