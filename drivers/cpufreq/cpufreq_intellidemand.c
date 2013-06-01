@@ -1670,11 +1670,13 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 	}
 }
 
-#if 0
+#if 1
 static int input_dev_filter(const char *input_dev_name)
 {
-	if (strstr(input_dev_name, "touchscreen") || strstr(input_dev_name, "-keypad") ||
-		strstr(input_dev_name, "-nav") || strstr(input_dev_name, "-oj")) {
+	if (strstr(input_dev_name, "touchscreen") ||
+		strstr(input_dev_name, "-keypad") ||
+		strstr(input_dev_name, "-nav") ||
+		strstr(input_dev_name, "-oj")) {
 		return 0;
 	} else {
 		return 1;
@@ -1688,7 +1690,7 @@ static int dbs_input_connect(struct input_handler *handler,
 	struct input_handle *handle;
 	int error;
 
-#if 0
+#if 1
 	/* filter out those input_dev that we don't care */
 	if (input_dev_filter(dev->name))
 		return -ENODEV;
