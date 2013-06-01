@@ -1760,7 +1760,7 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 		}
 
 		for_each_online_cpu(i)
-			queue_work_on(i, dbs_wq, &per_cpu(dbs_refresh_work, i).work);
+			queue_work_on(i, input_wq, &per_cpu(dbs_refresh_work, i).work);
 	}
 }
 
