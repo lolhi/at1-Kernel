@@ -2078,7 +2078,7 @@ static void tsif_release(struct device *dev)
 	dev_info(dev, "release\n");
 }
 
-#if 0 /* 20120217. WSH, build errorã€“ï¿½I AICï¼šâ”Œ ï¼‰â—‡ã€“ï¿½Aï¼šo. */
+#if 0 /* 20120217. WSH, build error¢®¢´I AIC¡§¨£ ¡Ë¡þ¢®¢´A¡§o. */
 static void tsif_init1(struct msm_tsif_platform_data *data)
 {
 	int val;
@@ -2116,7 +2116,7 @@ struct resource tsif1_resources[] = {
 	},
 };
 
-#if 0 /* 20120217. WSH, build errorã€“ï¿½I AICï¼šâ”Œ ï¼‰â—‡ã€“ï¿½Aï¼šo. */
+#if 0 /* 20120217. WSH, build error¢®¢´I AIC¡§¨£ ¡Ë¡þ¢®¢´A¡§o. */
 static void tsif_init0(struct msm_tsif_platform_data *data)
 {
 	int val;
