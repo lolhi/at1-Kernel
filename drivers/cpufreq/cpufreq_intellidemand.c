@@ -49,15 +49,11 @@
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define MIN_FREQUENCY_DOWN_DIFFERENTIAL		(1)
-#define DEFAULT_FREQ_BOOST_TIME			(2500000)
+#define DEFAULT_FREQ_BOOST_TIME			(3500000)
 #define DEF_SAMPLING_RATE			(50000)
 #define BOOSTED_SAMPLING_RATE			(20000)
 #define DBS_INPUT_EVENT_MIN_FREQ		(1026000)
-#ifdef CONFIG_CPU_OVERCLOCK
-#define DBS_TWO_PHASE_FREQ			(1512000)
-#else
 #define DBS_TWO_PHASE_FREQ			(1350000)
-#endif
 #define DBS_SYNC_FREQ				(702000)
 #define DBS_OPTIMAL_FREQ			(1350000)
 
@@ -91,7 +87,7 @@ static unsigned long stored_sampling_rate;
 #define TIMER_RATE_BOOST_TIME 2500000
 static int sampling_rate_boosted;
 static u64 sampling_rate_boosted_time;
-unsigned int current_sampling_rate;
+static unsigned int current_sampling_rate = DEF_SAMPLING_RATE;
 
 static void do_dbs_timer(struct work_struct *work);
 static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
@@ -141,11 +137,11 @@ static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info);
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 
 /*
- * dbs_mutex protects dbs_enable in governor start/stop.
+ * dbs_mutex protects dbs_enable and dbs_info during start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
 
-static struct workqueue_struct *input_wq;
+static struct workqueue_struct *dbs_wq;
 
 struct dbs_work_struct {
 	struct work_struct work;
@@ -498,8 +494,8 @@ static void update_sampling_rate(unsigned int new_rate)
 			cancel_delayed_work_sync(&dbs_info->work);
 			mutex_lock(&dbs_info->timer_mutex);
 
-			schedule_delayed_work_on(dbs_info->cpu, &dbs_info->work,
-						 usecs_to_jiffies(new_rate));
+			queue_delayed_work_on(dbs_info->cpu, dbs_wq,
+				&dbs_info->work, usecs_to_jiffies(new_rate));
 
 		}
 		mutex_unlock(&dbs_info->timer_mutex);
@@ -722,6 +718,10 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 				POWERSAVE_BIAS_MINLEVEL));
 
 	dbs_tuners_ins.powersave_bias = input;
+
+	mutex_lock(&dbs_mutex);
+	get_online_cpus();
+
 	if (!bypass) {
 		if (reenable_timer) {
 			/* reinstate dbs timer */
@@ -792,6 +792,9 @@ skip_this_cpu_bypass:
 			unlock_policy_rwsem_write(cpu);
 		}
 	}
+
+	put_online_cpus();
+	mutex_unlock(&dbs_mutex);
 
 	return count;
 }
@@ -1558,7 +1561,7 @@ static void do_dbs_timer(struct work_struct *work)
 			dbs_info->freq_lo, CPUFREQ_RELATION_H);
 		delay = dbs_info->freq_lo_jiffies;
 	}
-	schedule_delayed_work_on(cpu, &dbs_info->work, delay);
+	queue_delayed_work_on(cpu, dbs_wq, &dbs_info->work, delay);
 	mutex_unlock(&dbs_info->timer_mutex);
 }
 
@@ -1572,7 +1575,7 @@ static inline void dbs_timer_init(struct cpu_dbs_info_s *dbs_info)
 
 	dbs_info->sample_type = DBS_NORMAL_SAMPLE;
 	INIT_DELAYED_WORK_DEFERRABLE(&dbs_info->work, do_dbs_timer);
-	schedule_delayed_work_on(dbs_info->cpu, &dbs_info->work, delay);
+	queue_delayed_work_on(dbs_info->cpu, dbs_wq, &dbs_info->work, delay);
 }
 
 static inline void dbs_timer_exit(struct cpu_dbs_info_s *dbs_info)
@@ -1630,8 +1633,9 @@ static void dbs_refresh_callback(struct work_struct *work)
 	}
 
 	if (policy->cur < DBS_INPUT_EVENT_MIN_FREQ) {
-		 //pr_info("%s: set cpufreq to DBS_INPUT_EVENT_MIN_FREQ(%d)
-		 //	directly due to input events!\n", __func__, DBS_INPUT_EVENT_MIN_FREQ);
+#if 0
+		 pr_info("%s: set cpufreq to DBS_INPUT_EVENT_MIN_FREQ(%d) due to input events!\n", __func__, DBS_INPUT_EVENT_MIN_FREQ);
+#endif
 		/*
 		 * Arch specific cpufreq driver may fail.
 		 * Don't update governor frequency upon failure.
@@ -1669,8 +1673,11 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 			sampling_rate_boosted = 1;
 		}
 
+		/* debug mesg */
+		//pr_info("screen touched!\n");
+
 		for_each_online_cpu(i)
-			queue_work_on(i, input_wq, &per_cpu(dbs_refresh_work, i).work);
+			queue_work_on(i, dbs_wq, &per_cpu(dbs_refresh_work, i).work);
 	}
 }
 
@@ -1678,6 +1685,7 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 static int input_dev_filter(const char *input_dev_name)
 {
 	if (strstr(input_dev_name, "touchscreen") ||
+		strstr(input_dev_name, "sec_touchscreen") ||
 		strstr(input_dev_name, "-keypad") ||
 		strstr(input_dev_name, "-nav") ||
 		strstr(input_dev_name, "-oj")) {
@@ -1716,6 +1724,7 @@ static int dbs_input_connect(struct input_handler *handler,
 	if (error)
 		goto err1;
 
+	pr_info("%s found and connected!\n", dev->name);
 	return 0;
 err1:
 	input_unregister_handle(handle);
@@ -1906,9 +1915,9 @@ static int __init cpufreq_gov_dbs_init(void)
 			MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}
 
-	input_wq = create_workqueue("iewq");
-	if (!input_wq) {
-		printk(KERN_ERR "Failed to create iewq workqueue\n");
+	dbs_wq = alloc_workqueue("intellidemand_dbs_wq", WQ_HIGHPRI, 0);
+	if (!dbs_wq) {
+		printk(KERN_ERR "Failed to create intellidemand_dbs_wq workqueue\n");
 		return -EFAULT;
 	}
 	for_each_possible_cpu(i) {
@@ -1941,7 +1950,7 @@ static void __exit cpufreq_gov_dbs_exit(void)
 #ifdef CONFIG_EARLYSUSPEND
 	unregister_early_suspend(&cpufreq_intellidemand_early_suspend_info);
 #endif
-	destroy_workqueue(input_wq);
+	destroy_workqueue(dbs_wq);
 }
 
 static int set_enable_dbs_input_event_param(const char *val, struct kernel_param *kp)
