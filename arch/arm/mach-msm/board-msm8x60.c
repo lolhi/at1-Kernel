@@ -564,7 +564,7 @@ static struct regulator_init_data saw_s0_init_data = {
 		.constraints = {
 			.name = "8901_s0",
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
-			.min_uV = 800000,
+			.min_uV = 775000,
 #ifdef CONFIG_SKY_CORE_VOLTAGE
 			.max_uV = 1350000,
 #else
@@ -579,7 +579,7 @@ static struct regulator_init_data saw_s1_init_data = {
 		.constraints = {
 			.name = "8901_s1",
 			.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
-			.min_uV = 800000,
+			.min_uV = 775000,
 #ifdef CONFIG_SKY_CORE_VOLTAGE
 			.max_uV = 1350000,
 #else
