@@ -40,18 +40,6 @@
 #define CLASS_IDX_MASK	((1 << CLASS_IDX_BITS) - 1)
 #define FULLNESS_MASK	((1 << FULLNESS_BITS) - 1)
 
-/*
- * Object location (<PFN>, <obj_idx>) is encoded as
- * as single (void *) handle value.
- *
- * Note that object index <obj_idx> is relative to system
- * page <PFN> it is stored in, so for each sub-page belonging
- * to a zspage, obj_idx starts with 0.
- */
-#define _PFN_BITS		(MAX_PHYSMEM_BITS - PAGE_SHIFT)
-#define OBJ_INDEX_BITS	(BITS_PER_LONG - _PFN_BITS)
-#define OBJ_INDEX_MASK	((_AC(1, UL) << OBJ_INDEX_BITS) - 1)
-
 /* per-cpu VM mapping areas for zspage accesses that cross page boundaries */
 static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
 
@@ -198,7 +186,7 @@ static int get_zspage_order(int class_size)
 	/* zspage order which gives maximum used size per KB */
 	int max_usedpc_order = 1;
 
-	for (i = 1; i <= max_zspage_order; i++) {
+	for (i = 1; i <= ZS_MAX_PAGES_PER_ZSPAGE; i++) {
 		int zspage_size;
 		int waste, usedpc;
 
@@ -279,33 +267,39 @@ static unsigned long obj_idx_to_offset(struct page *page,
 	return off + obj_idx * class_size;
 }
 
+static void reset_page(struct page *page)
+{
+	clear_bit(PG_private, &page->flags);
+	clear_bit(PG_private_2, &page->flags);
+	set_page_private(page, 0);
+	page->mapping = NULL;
+	page->freelist = NULL;
+	reset_page_mapcount(page);
+}
+
 static void free_zspage(struct page *first_page)
 {
-	struct page *nextp, *tmp;
+	struct page *nextp, *tmp, *head_extra;
 
 	BUG_ON(!is_first_page(first_page));
 	BUG_ON(first_page->inuse);
 
-	nextp = (struct page *)page_private(first_page);
+	head_extra = (struct page *)page_private(first_page);
 
-	clear_bit(PG_private, &first_page->flags);
-	clear_bit(PG_private_2, &first_page->flags);
-	set_page_private(first_page, 0);
-	first_page->mapping = NULL;
-	first_page->freelist = NULL;
-	reset_page_mapcount(first_page);
+	reset_page(first_page);
 	__free_page(first_page);
 
 	/* zspage with only 1 system page */
-	if (!nextp)
+	if (!head_extra)
 		return;
 
-	list_for_each_entry_safe(nextp, tmp, &nextp->lru, lru) {
+	list_for_each_entry_safe(nextp, tmp, &head_extra->lru, lru) {
 		list_del(&nextp->lru);
-		clear_bit(PG_private_2, &nextp->flags);
-		nextp->index = 0;
+		reset_page(nextp);
 		__free_page(nextp);
 	}
+	reset_page(head_extra);
+	__free_page(head_extra);
 }
 
 /* Initialize a newly allocated zspage */
