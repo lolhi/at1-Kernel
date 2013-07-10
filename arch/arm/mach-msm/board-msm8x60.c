@@ -10859,7 +10859,7 @@ out:
     #endif
 	return;
 }
-	
+
 static void lcdc_samsung_panel_power(int on)
 {
 	int n, ret = 0;
@@ -11890,7 +11890,7 @@ static int bluetooth_power(int on)
 	printk(KERN_ERR "%s: %d\n",__func__, on);
 
 	if (on) {
-		
+
 		for (pin = 0; pin < ARRAY_SIZE(bt_config_power_on); pin++) {
 			rc = gpio_tlmm_config(bt_config_power_on[pin], GPIO_CFG_ENABLE);
 			if (rc) {
@@ -11926,7 +11926,7 @@ static int bluetooth_power(int on)
 				return -EIO;
 			}
 		}
-	
+
 		/* check for initial RFKILL block (power off) */
 		/* some RFKILL versions/configurations rfkill_register */
 		/* calls here for an initial set_block */

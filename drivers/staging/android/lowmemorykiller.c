@@ -325,7 +325,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		selected = p;
 		selected_tasksize = tasksize;
 		selected_oom_adj = oom_adj;
-		 //p10582 2012/05/23 : 1 sec time Àü¿¡ ¸Ş¸ğ¸® È®º¸ ½ÇÆĞ ÇÑ °æ¿ì ¿¹¿Ü Ã³¸®.
+		 //p10582 2012/05/23 : 1 sec time Ã€Ã¼Â¿Â¡ Å¾ÃÅ¾Ã°Å¾Â® ÃˆÂ®ÂºÅ¾ Å“Ã‡Ã†Ã Ã‡Ã‘ Â°Ã¦Â¿Ã¬ Â¿Â¹Â¿Ãœ ÃƒÂ³Å¾Â®.
 		if(lowmem_deathpending && selected != lowmem_deathpending)
 		{
 		   if(selected_oom_adj > 5){
@@ -359,7 +359,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 			     selected->pid, selected->comm,
 			     selected_oom_adj, selected_tasksize);
 		lowmem_deathpending = selected;
-		//p10582 2012/05/23 : 1 sec time Àü¿¡ ¸Ş¸ğ¸® È®º¸ ½ÇÆĞ ÇÑ °æ¿ì ¹®Á¦ µÇ±â ¶§¹®¿¡  300 ms ·Î Á¶Á¤ ÇÔ.
+		//p10582 2012/05/23 : 1 sec time Ã€Ã¼Â¿Â¡ Å¾ÃÅ¾Ã°Å¾Â® ÃˆÂ®ÂºÅ¾ Å“Ã‡Ã†Ã Ã‡Ã‘ Â°Ã¦Â¿Ã¬ Â¹Â®ÃÅ  ÂµÃ‡Â±Ã¢ Â¶Â§Â¹Â®Â¿Â¡  300 ms Â·Ã ÃÂ¶Ãâ‚¬ Ã‡Ã”.
 		lowmem_deathpending_timeout = jiffies + (3*HZ/10);
 		//lowmem_deathpending_timeout = jiffies + HZ;
 		
