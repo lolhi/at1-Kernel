@@ -46,7 +46,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/prefetch.h>
 #include <net/pkt_sched.h>
 #include <net/codel.h>
 
