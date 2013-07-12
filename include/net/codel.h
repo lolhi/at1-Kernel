@@ -46,7 +46,6 @@
 #include <linux/skbuff.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
-#include <linux/reciprocal_div.h>
 
 /* Controlling Queue Delay (CoDel) algorithm
  * =========================================
@@ -124,7 +123,6 @@ struct codel_params {
  *			entered dropping state
  * @lastcount:		count at entry to dropping state
  * @dropping:		set to true if in dropping state
- * @rec_inv_sqrt:	reciprocal value of sqrt(count) >> 1
  * @first_above_time:	when we went (or will go) continuously above target
  *			for interval
  * @drop_next:		time to drop next packet, or when we dropped last
@@ -133,8 +131,7 @@ struct codel_params {
 struct codel_vars {
 	u32		count;
 	u32		lastcount;
-	bool		dropping:1;
-	u32		rec_inv_sqrt:31;
+	bool		dropping;
 	codel_time_t	first_above_time;
 	codel_time_t	drop_next;
 	codel_time_t	ldelay;
@@ -161,7 +158,11 @@ static void codel_params_init(struct codel_params *params)
 
 static void codel_vars_init(struct codel_vars *vars)
 {
-	memset(vars, 0, sizeof(*vars));
+	vars->drop_next = 0;
+	vars->first_above_time = 0;
+	vars->dropping = false; /* exit dropping state */
+	vars->count = 0;
+	vars->lastcount = 0;
 }
 
 static void codel_stats_init(struct codel_stats *stats)
@@ -169,37 +170,38 @@ static void codel_stats_init(struct codel_stats *stats)
 	stats->maxpacket = 256;
 }
 
-/*
- * http://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Iterative_methods_for_reciprocal_square_roots
- * new_invsqrt = (invsqrt / 2) * (3 - count * invsqrt^2)
- *
- * Here, invsqrt is a fixed point number (< 1.0), 31bit mantissa)
+/* return interval/sqrt(x) with good precision
+ * relies on int_sqrt(unsigned long x) kernel implementation
  */
-static void codel_Newton_step(struct codel_vars *vars)
+static u32 codel_inv_sqrt(u32 _interval, u32 _x)
 {
-	u32 invsqrt = vars->rec_inv_sqrt;
-	u32 invsqrt2 = ((u64)invsqrt * invsqrt) >> 31;
-	u64 val = (3LL << 31) - ((u64)vars->count * invsqrt2);
+	u64 interval = _interval;
+	unsigned long x = _x;
 
-	val = (val * invsqrt) >> 32;
+	/* Scale operands for max precision */
 
-	vars->rec_inv_sqrt = val;
+#if BITS_PER_LONG == 64
+	x <<= 32; /* On 64bit arches, we can prescale x by 32bits */
+	interval <<= 16;
+#endif
+
+	while (x < (1UL << (BITS_PER_LONG - 2))) {
+		x <<= 2;
+		interval <<= 1;
+	}
+	do_div(interval, int_sqrt(x));
+	return (u32)interval;
 }
 
-/*
- * CoDel control_law is t + interval/sqrt(count)
- * We maintain in rec_inv_sqrt the reciprocal value of sqrt(count) to avoid
- * both sqrt() and divide operation.
- */
 static codel_time_t codel_control_law(codel_time_t t,
 				      codel_time_t interval,
-				      u32 rec_inv_sqrt)
+				      u32 count)
 {
-	return t + reciprocal_divide(interval, rec_inv_sqrt << 1);
+	return t + codel_inv_sqrt(interval, count);
 }
 
 
-static bool codel_should_drop(const struct sk_buff *skb,
+static bool codel_should_drop(struct sk_buff *skb,
 			      unsigned int *backlog,
 			      struct codel_vars *vars,
 			      struct codel_params *params,
@@ -272,16 +274,14 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 			 */
 			while (vars->dropping &&
 			       codel_time_after_eq(now, vars->drop_next)) {
-				vars->count++; /* dont care of possible wrap
-						* since there is no more divide
-						*/
-				codel_Newton_step(vars);
+				if (++vars->count == 0) /* avoid zero divides */
+					vars->count = ~0U;
 				if (params->ecn && INET_ECN_set_ce(skb)) {
 					stats->ecn_mark++;
 					vars->drop_next =
 						codel_control_law(vars->drop_next,
 								  params->interval,
-								  vars->rec_inv_sqrt);
+								  vars->count);
 					goto end;
 				}
 				qdisc_drop(skb, sch);
@@ -296,7 +296,7 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 					vars->drop_next =
 						codel_control_law(vars->drop_next,
 								  params->interval,
-								  vars->rec_inv_sqrt);
+								  vars->count);
 				}
 			}
 		}
@@ -319,18 +319,12 @@ static struct sk_buff *codel_dequeue(struct Qdisc *sch,
 		if (codel_time_before(now - vars->drop_next,
 				      16 * params->interval)) {
 			vars->count = (vars->count - vars->lastcount) | 1;
-			/* we dont care if rec_inv_sqrt approximation
-			 * is not very precise :
-			 * Next Newton steps will correct it quadratically.
-			 */
-			codel_Newton_step(vars);
 		} else {
 			vars->count = 1;
-			vars->rec_inv_sqrt = 0x7fffffff;
 		}
 		vars->lastcount = vars->count;
 		vars->drop_next = codel_control_law(now, params->interval,
-						    vars->rec_inv_sqrt);
+						    vars->count);
 	}
 end:
 	return skb;
