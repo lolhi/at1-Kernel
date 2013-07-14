@@ -69,6 +69,7 @@ static long __estimate_accuracy(struct timespec *tv)
 
 long select_estimate_accuracy(struct timespec *tv)
 {
+	unsigned long ret;
 	struct timespec now;
 
 	/*
@@ -80,8 +81,10 @@ long select_estimate_accuracy(struct timespec *tv)
 
 	ktime_get_ts(&now);
 	now = timespec_sub(*tv, now);
-	return clamp(__estimate_accuracy(&now),
-			get_task_timer_slack(current), LONG_MAX);
+	ret = __estimate_accuracy(&now);
+	if (ret < current->timer_slack_ns)
+		return current->timer_slack_ns;
+	return ret;
 }
 
 
