@@ -1325,6 +1325,7 @@ out:
 
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
+	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
 	req->cmd_flags |= bio->bi_rw & REQ_COMMON_MASK;
@@ -1408,16 +1409,11 @@ get_rq:
 	 */
 	init_request_from_bio(req, bio);
 
-<<<<<<< HEAD
 	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
 	    bio_flagged(bio, BIO_CPU_AFFINE)) {
 		req->cpu = blk_cpu_to_group(get_cpu());
 		put_cpu();
 	}
-=======
-	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags))
-		req->cpu = raw_smp_processor_id();
->>>>>>> 9562ad9... block: Remove the control of complete cpu from bio.
 
 	plug = current->plug;
 	if (plug) {
