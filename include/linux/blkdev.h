@@ -889,6 +889,8 @@ struct blk_plug {
 	struct list_head cb_list;
 	unsigned int should_sort;
 };
+#define BLK_MAX_REQUEST_COUNT 16
+
 struct blk_plug_cb {
 	struct list_head list;
 	void (*callback)(struct blk_plug_cb *);

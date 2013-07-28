@@ -313,9 +313,9 @@ void __blk_run_queue(struct request_queue *q)
 		return;
 
 	if (!q->notified_urgent &&
-		q->elevator->elevator_type->ops.elevator_is_urgent_fn &&
+		q->elevator->type->ops.elevator_is_urgent_fn &&
 		q->urgent_request_fn &&
-		q->elevator->elevator_type->ops.elevator_is_urgent_fn(q)) {
+		q->elevator->type->ops.elevator_is_urgent_fn(q)) {
 		q->notified_urgent = true;
 		q->urgent_request_fn(q);
 	} else
@@ -1139,7 +1139,7 @@ bool blk_reinsert_req_sup(struct request_queue *q)
 {
 	if (unlikely(!q))
 		return false;
-	return q->elevator->elevator_type->ops.elevator_reinsert_req_fn ? true : false;
+	return q->elevator->type->ops.elevator_reinsert_req_fn ? true : false;
 }
 EXPORT_SYMBOL(blk_reinsert_req_sup);
 
@@ -1388,6 +1388,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	struct blk_plug *plug;
 	int el_ret, rw_flags, where = ELEVATOR_INSERT_SORT;
 	struct request *req;
+	unsigned int request_count = 0;
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -1482,7 +1483,9 @@ get_rq:
 out_unlock:
 		spin_unlock_irq(q->queue_lock);
 	}
+/*
 out:
+*/
 	return 0;
 }
 
