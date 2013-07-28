@@ -14,7 +14,6 @@
 #include <linux/rbtree.h>
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
-#include "blk.h"
 #include "cfq.h"
 
 /*
@@ -3200,18 +3199,14 @@ static struct cfq_io_context *
 cfq_get_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 {
 	struct io_context *ioc = NULL;
-<<<<<<< HEAD
 	struct cfq_io_context *cic;
 	int ret;
-=======
-	struct cfq_io_context *cic = NULL;
->>>>>>> 6e736be... block: make ioc get/put interface more conventional and fix race on alloction
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
-	ioc = current_io_context(gfp_mask, cfqd->queue->node);
+	ioc = get_io_context(gfp_mask, cfqd->queue->node);
 	if (!ioc)
-		goto err;
+		return NULL;
 
 retry:
 	cic = cfq_cic_lookup(cfqd, ioc);
@@ -3222,7 +3217,6 @@ retry:
 	if (cic == NULL)
 		goto err;
 
-<<<<<<< HEAD
 	ret = cfq_cic_link(cfqd, ioc, cic, gfp_mask);
 	if (ret == -EEXIST) {
 		/* someone has linked cic to ioc already */
@@ -3231,13 +3225,8 @@ retry:
 	} else if (ret)
 		goto err_free;
 
-=======
-	if (cfq_cic_link(cfqd, ioc, cic, gfp_mask))
-		goto err;
->>>>>>> 6e736be... block: make ioc get/put interface more conventional and fix race on alloction
 out:
-	get_io_context(ioc);
-
+	smp_read_barrier_depends();
 	if (unlikely(ioc->ioprio_changed))
 		cfq_ioc_set_ioprio(ioc);
 
@@ -3246,9 +3235,10 @@ out:
 		cfq_ioc_set_cgroup(ioc);
 #endif
 	return cic;
+err_free:
+	cfq_cic_free(cic);
 err:
-	if (cic)
-		cfq_cic_free(cic);
+	put_io_context(ioc);
 	return NULL;
 }
 
