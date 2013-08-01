@@ -97,7 +97,6 @@ x509.genkey
 arch/arm/boot/Image
 arch/arm/boot/compressed/lib1funcs.S
 arch/arm/boot/compressed/piggy.gzip
-arch/arm/boot/compressed/piggy.lz4
 arch/arm/boot/compressed/vmlinux
 arch/arm/boot/compressed/vmlinux.lds
 arch/arm/boot/zImage
@@ -127,6 +126,5 @@ scripts/mod/modpost
 usr/gen_init_cpio
 usr/initramfs_data.cpio
 scripts/kconfig/mconf
-arch/arm/boot/compressed/ashldi3.S
 
 
