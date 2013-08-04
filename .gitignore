@@ -127,5 +127,5 @@ scripts/mod/modpost
 usr/gen_init_cpio
 usr/initramfs_data.cpio
 scripts/kconfig/mconf
-
+arch/arm/boot/compressed/ashldi3.S
 
