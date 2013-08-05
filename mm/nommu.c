@@ -455,7 +455,7 @@ void  __attribute__((weak)) vmalloc_sync_all(void)
  *	between processes, it syncs the pagetable across all
  *	processes.
  */
-struct vm_struct *alloc_vm_area(size_t size)
+struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
 {
 	BUG();
 	return NULL;
@@ -1709,18 +1709,6 @@ erase_whole_vma:
 	return 0;
 }
 EXPORT_SYMBOL(do_munmap);
-
-int vm_munmap(unsigned long addr, size_t len)
-{
-        struct mm_struct *mm = current->mm;
-        int ret;
-
-        down_write(&mm->mmap_sem);
-        ret = do_munmap(mm, addr, len);
-        up_write(&mm->mmap_sem);
-        return ret;
-}
-EXPORT_SYMBOL(vm_munmap);
 
 SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {

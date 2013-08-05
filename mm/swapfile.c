@@ -2347,6 +2347,10 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
 		base++;
 
 	spin_lock(&swap_lock);
+	if (frontswap_test(si, target)) {
+		spin_unlock(&swap_lock);
+		return 0;
+	}
 	if (end > si->max)	/* don't go beyond end of map */
 		end = si->max;
 
@@ -2357,6 +2361,9 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
 			break;
 		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
 			break;
+		/* Don't read in frontswap pages */
+		if (frontswap_test(si, toff))
+			break;
 	}
 	/* Count contiguous allocated slots below our target */
 	for (toff = target; --toff >= base; nr_pages++) {
@@ -2364,6 +2371,9 @@ int valid_swaphandles(swp_entry_t entry, unsigned long *offset)
 		if (!si->swap_map[toff])
 			break;
 		if (swap_count(si->swap_map[toff]) == SWAP_MAP_BAD)
+			break;
+		/* Don't read in frontswap pages */
+		if (frontswap_test(si, toff))
 			break;
 	}
 	spin_unlock(&swap_lock);
