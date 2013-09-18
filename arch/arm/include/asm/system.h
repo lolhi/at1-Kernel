@@ -99,10 +99,8 @@ struct mm_struct;
 extern void show_pte(struct mm_struct *mm, unsigned long addr);
 extern void __show_regs(struct pt_regs *);
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-extern struct pt_regs *__get_regs_crashed(void);
-extern void __save_regs_and_mmu(struct pt_regs *);
-extern void (*arm_crash_reset)(void);
-extern void printcrash(const char *fmt, ...);
+extern void __save_regs_and_mmu_in_panic(void);
+extern void __save_regs_and_mmu(struct pt_regs *regs, bool is_die);
 #endif
 
 extern int cpu_architecture(void);

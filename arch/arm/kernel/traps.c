@@ -35,15 +35,14 @@
 #include <asm/unwind.h>
 #include <asm/tls.h>
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#if defined(CONFIG_PANTECH_DEBUG_SCHED_LOG) //p14291_pantech_dbg
+#include <mach/pantech_apanic.h>
+#endif
+#endif
 #include "signal.h"
 #ifdef FEATURE_SKY_PWR_ONOFF_REASON_CNT
 #include "../mach-msm/sky_sys_reset.h"
-#endif
-
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-extern void apainc_kernel_stack_dump_start(void);
-extern void apainc_kernel_stack_dump(const char *name, int size);
-extern int pantech_kernel_stack_dump_disable(void);
 #endif
 
 static const char *handler[]= { "prefetch abort", "data abort", "address exception", "interrupt" };
@@ -66,41 +65,8 @@ static void dump_mem(const char *, const char *, unsigned long, unsigned long);
 void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
 {
 #ifdef CONFIG_KALLSYMS
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-  char *modname;
-  const char *name;
-  unsigned long offset, size;
-  int len;
-  char buffer[KSYM_NAME_LEN];
-   
-  memset(buffer, 0x00, KSYM_NAME_LEN);
-  name = kallsyms_lookup(where, &size, &offset, &modname, buffer);
-  if (!name)
-    sprintf(buffer, "0x%lx", where);
-  
-  if (name != buffer)
-    strcpy(buffer, name);
-  len = strlen(buffer);
-
-  if(buffer[0] != 0x00)
-  {
-    apainc_kernel_stack_dump(buffer, strlen(buffer));
-  }
-#endif
-
 	printk("[<%08lx>] (%pS) from [<%08lx>] (%pS)\n", where, (void *)where, from, (void *)from);
 #else
-
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-  char buffer[KSYM_NAME_LEN];
-  memset(buffer, 0x00, KSYM_NAME_LEN);
-  sprintf(buffer, "%d", where);
-  if(buffer[0] != 0x00)
-  {
-    apainc_kernel_stack_dump(buffer, strlen(buffer));
-  }
-#endif
-
 	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
 #endif
 
@@ -248,11 +214,6 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 
 void dump_stack(void)
 {
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	if(pantech_kernel_stack_dump_disable ())
-		printk("In panic from Apps watchdog bark \n");
-	else
-#endif  
 	dump_backtrace(NULL, NULL);
 }
 
@@ -290,27 +251,19 @@ static int __die(const char *str, int err, struct thread_info *thread, struct pt
 		return ret;
 
 	print_modules();
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING 
- 	if(!pantech_kernel_stack_dump_disable ())
-#endif   
 	__show_regs(regs);
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	__save_regs_and_mmu(regs);
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING  //p14291_smp
+        __save_regs_and_mmu(regs, true);
 #endif
+
 	printk(KERN_EMERG "Process %.*s (pid: %d, stack limit = 0x%p)\n",
 		TASK_COMM_LEN, tsk->comm, task_pid_nr(tsk), thread + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING  
-	  if(!pantech_kernel_stack_dump_disable ()) {
-#endif    
 		dump_mem(KERN_EMERG, "Stack: ", regs->ARM_sp,
 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
 		dump_backtrace(regs, tsk);
 		dump_instr(KERN_EMERG, regs);
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING  
-	}
-#endif   
 	}
 
 	return ret;
@@ -329,11 +282,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 
 	oops_enter();
 
- #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	apainc_kernel_stack_dump_start();
- #endif
- 
 	raw_spin_lock_irq(&die_lock);
+	
+ #if defined(CONFIG_PANTECH_DEBUG)
+#if defined(CONFIG_PANTECH_DEBUG_SCHED_LOG)  //p14291_121102
+	pantechdbg_sched_msg("!!die!!");
+#endif
+#endif
+
 	console_verbose();
 	bust_spinlocks(1);
 	if (!user_mode(regs))

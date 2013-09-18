@@ -31,6 +31,9 @@
 #include <mach/msm_iomap.h>
 #include <mach/rpm.h>
 #include <mach/socinfo.h>
+#if defined(CONFIG_PANTECH_DEBUG)
+#include <mach/pantech_apanic.h> //p14291_pantech_dbg
+#endif
 
 /******************************************************************************
  * Data type and structure definitions
@@ -201,6 +204,12 @@ static int msm_rpm_process_ack_interrupt(void)
 
 		if (msm_rpm_request->done)
 			complete_all(msm_rpm_request->done);
+		
+#if defined(CONFIG_PANTECH_DEBUG)
+#if defined(CONFIG_PANTECH_DEBUG_RPM_LOG) //p14291_121102
+		pantech_debug_rpm_log(0, msm_rpm_request->req->id, msm_rpm_request->req->value); 
+#endif
+#endif
 
 		msm_rpm_request = NULL;
 		return 0;
@@ -290,7 +299,12 @@ static int msm_rpm_set_exclusive(int ctx,
 	msm_rpm_write(MSM_RPM_PAGE_CTRL, MSM_RPM_CTRL_REQ_CTX_0, ctx_mask);
 
 	/* Ensure RPM data is written before sending the interrupt */
-	mb();
+	mb();	
+#if defined(CONFIG_PANTECH_DEBUG)
+#if defined(CONFIG_PANTECH_DEBUG_RPM_LOG) //p14291_121102
+	pantech_debug_rpm_log(1, req->id, req->value); 
+#endif
+#endif
 	msm_rpm_send_req_interrupt();
 
 	spin_unlock(&msm_rpm_irq_lock);
@@ -357,6 +371,11 @@ static int msm_rpm_set_exclusive_noirq(int ctx,
 
 	/* Ensure RPM data is written before sending the interrupt */
 	mb();
+#if defined(CONFIG_PANTECH_DEBUG)
+#if defined(CONFIG_PANTECH_DEBUG_RPM_LOG) //p14291_121102
+	pantech_debug_rpm_log(1, req->id, req->value); 
+#endif
+#endif
 	msm_rpm_send_req_interrupt();
 
 	msm_rpm_busy_wait_for_request_completion(false);

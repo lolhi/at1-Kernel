@@ -82,9 +82,6 @@ struct fuse_inode {
 	    preserve the original mode */
 	mode_t orig_i_mode;
 
-	/** 64 bit inode number */
-	u64 orig_ino;
-
 	/** Version of last attribute change */
 	u64 attr_version;
 
@@ -293,16 +290,8 @@ struct fuse_req {
 	/** number of pages in vector */
 	unsigned num_pages;
 
-	/** If set, it describes layout of user-data in pages[] */
-	const struct iovec *iovec;
-
-	union {
-		/** offset of data on first page */
-		unsigned page_offset;
-
-		/** or in first iovec */
-		unsigned iov_offset;
-	};
+	/** offset of data on first page */
+	unsigned page_offset;
 
 	/** File used in the request (or NULL) */
 	struct fuse_file *ff;

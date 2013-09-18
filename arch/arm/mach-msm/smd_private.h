@@ -211,7 +211,5 @@ extern spinlock_t smem_lock;
 
 
 void smd_diag(void);
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-void smem_diag_set_message(char *message);
-#endif /* CONFIG_PANTECH_ERR_CRASH_LOGGING */
+
 #endif

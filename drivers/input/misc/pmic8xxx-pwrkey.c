@@ -23,11 +23,6 @@
 #include <linux/mfd/pm8xxx/core.h>
 #include <linux/input/pmic8xxx-pwrkey.h>
 
-#ifdef CONFIG_SW_RESET
-#include <mach/board-msm8660.h>
-#include <linux/mfd/pm8xxx/core.h>
-#endif
-
 #define PON_CNTL_1 0x1C
 #define PON_CNTL_PULL_UP BIT(7)
 #define PON_CNTL_TRIG_DELAY_MASK (0x7)
@@ -42,19 +37,6 @@ struct pmic8xxx_pwrkey {
 	int key_press_irq;
 	const struct pm8xxx_pwrkey_platform_data *pdata;
 };
-
-
-// paiksun...
-#ifdef CONFIG_SW_RESET
-static struct platform_device	*pwrkey_pm_chip;
-static int pwrkey_irq;
-extern int pm8058_read_irq_stat(const struct device *dev, int irq);
-
-int pm8058_get_pwrkey_status(void)
-{
-	return pm8xxx_read_irq_stat(pwrkey_pm_chip->dev.parent, pwrkey_irq);
-}
-#endif
 
 static irqreturn_t pwrkey_press_irq(int irq, void *_pwrkey)
 {
@@ -113,11 +95,6 @@ static int __devinit pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	const struct pm8xxx_pwrkey_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);
 
-// paiksun...
-#ifdef CONFIG_SW_RESET
-	pwrkey_pm_chip = pdev;
-	pwrkey_irq = key_press_irq;
-#endif
 	if (!pdata) {
 		dev_err(&pdev->dev, "power key platform data not supplied\n");
 		return -EINVAL;

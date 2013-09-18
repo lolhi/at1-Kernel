@@ -22,22 +22,18 @@
 
 #include <mach/scm.h>
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_pantech_dbg
+#include <mach/pantech_apanic.h>
+#endif
+#endif
+
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
 #define SCM_EINVAL_ADDR		-3
 #define SCM_EINVAL_ARG		-2
 #define SCM_ERROR		-1
 #define SCM_INTERRUPTED		1
-
-#if defined(__GNUC__) && \
-	defined(__GNUC_MINOR__) && \
-	defined(__GNUC_PATCHLEVEL__) && \
-	((__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)) \
-		>= 40502
-#define USE_ARCH_EXTENSION_SEC 1
-#else
-#define USE_ARCH_EXTENSION_SEC 0
-#endif
 
 static DEFINE_MUTEX(scm_lock);
 
@@ -183,9 +179,6 @@ static u32 smc(u32 cmd_addr)
 			__asmeq("%1", "r0")
 			__asmeq("%2", "r1")
 			__asmeq("%3", "r2")
-#if USE_ARCH_EXTENSION_SEC
-			".arch_extension sec\n"
-#endif
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0)
 			: "r" (r0), "r" (r1), "r" (r2)
@@ -255,6 +248,11 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	if (cmd_buf)
 		memcpy(scm_get_command_buffer(cmd), cmd_buf, cmd_len);
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_121113_add_scmlog
+	pantechdbg_sched_msg("^^SCM CALL [%d], [%d]",svc_id, cmd_id);
+#endif
+#endif
 	mutex_lock(&scm_lock);
 	ret = __scm_call(cmd);
 	mutex_unlock(&scm_lock);
@@ -307,9 +305,6 @@ s32 scm_call_atomic1(u32 svc, u32 cmd, u32 arg1)
 		__asmeq("%1", "r0")
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
-#if USE_ARCH_EXTENSION_SEC
-		".arch_extension sec\n"
-#endif
 		"smc	#0	@ switch to secure world\n"
 		: "=r" (r0)
 		: "r" (r0), "r" (r1), "r" (r2)
@@ -342,9 +337,6 @@ s32 scm_call_atomic2(u32 svc, u32 cmd, u32 arg1, u32 arg2)
 		__asmeq("%2", "r1")
 		__asmeq("%3", "r2")
 		__asmeq("%4", "r3")
-#if USE_ARCH_EXTENSION_SEC
-		".arch_extension sec\n"
-#endif
 		"smc	#0	@ switch to secure world\n"
 		: "=r" (r0)
 		: "r" (r0), "r" (r1), "r" (r2), "r" (r3));
@@ -404,9 +396,6 @@ u32 scm_get_version(void)
 			__asmeq("%1", "r1")
 			__asmeq("%2", "r0")
 			__asmeq("%3", "r1")
-#if USE_ARCH_EXTENSION_SEC
-			".arch_extension sec\n"
-#endif
 			"smc	#0	@ switch to secure world\n"
 			: "=r" (r0), "=r" (r1)
 			: "r" (r0), "r" (r1)

@@ -1177,7 +1177,7 @@ int msm_reset_get_bl(void)
 	void *restart_bl;
 	int bl;
 
-	restart_bl = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+	restart_bl = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
 	bl = readl(restart_bl+8);
 	iounmap(restart_bl);
 	if (bl == RESTART_BL_ON) {
@@ -1197,7 +1197,7 @@ void msm_reset_set_bl(int bl)
 {
 	void *restart_bl;
 
-	restart_bl = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+	restart_bl = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
 	if (bl > 0) {
 		bl = RESTART_BL_ON;
 	} else {
@@ -1214,7 +1214,7 @@ int msm_reset_reason_read_only(void)
 	void *restart_reason;
 	int reason, result;
 
-	restart_reason = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+	restart_reason = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
 	reason = readl(restart_reason);
 
 	iounmap(restart_reason);
@@ -1242,7 +1242,7 @@ int msm_reset_reason(void)
 	int reason, result;
 	struct proc_dir_entry *reset_info;
 
-	restart_reason = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+	restart_reason = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
 	reason = readl(restart_reason);
 
 	sky_sys_rst_set_prev_reset_info();
@@ -1280,7 +1280,7 @@ static void msm_reset_reason_clear(void)
 {
 	void *restart_reason;
 
-	restart_reason = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+	restart_reason = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
 	writel(SYS_RESET_REASON_ABNORMAL, restart_reason);
 	iounmap(restart_reason);
 

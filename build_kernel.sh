@@ -1,10 +1,27 @@
-export OEM_PRODUCT_MANUFACTURER=PANTECH
-export SKY_ANDROID_FLAGS+="-DFEATURE_AARM_RELEASE_MODE -DMODEL_SKY -DMODEL_ID=MODEL_EF34K -DBOARD_VER=AT1_TP20 -I$PWD/include -include $PWD/include/CUST_SKY.h -DFIRM_VER=\\\"S0834211\\\" -DSYS_MODEL_NAME=\\\"EF34K\\\" -DSKY_MODEL_NAME=\\\"IM-T100K\\\" -DVARIOUS_MODEL_AT1 -DNAMING_AT1"
-KERNEL_DEFCONFIG=msm8660-perf_defconfig
-mkdir -p ./obj/KERNEL_OBJ
-#make O=./obj/KERNEL_OBJ  clean
-make O=./obj/KERNEL_OBJ $KERNEL_DEFCONFIG
-make O=./obj/KERNEL_OBJ  
+#!/bin/bash
+###############################################################################
+#
+#                           Kernel Build Script 
+#
+###############################################################################
+# 2011-10-24 effectivesky : modified
+# 2010-12-29 allydrop     : created
+###############################################################################
+##############################################################################
+# set toolchain
+##############################################################################
+#export ARCH=arm
+#export CROSS_COMPILE=$PWD/../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
 
+##############################################################################
+# make zImage
+##############################################################################
+mkdir -p ./obj/KERNEL_OBJ/
+make O=./obj/KERNEL_OBJ/ msm8660-perf-AT1_defconfig
+make O=./obj/KERNEL_OBJ/ -j8 2>&1 | tee kernel_build.log
+
+##############################################################################
+# Copy Kernel Image
+##############################################################################
 cp -f ./obj/KERNEL_OBJ/arch/arm/boot/zImage .
 

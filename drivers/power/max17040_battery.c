@@ -789,7 +789,6 @@ static void max17040_set_rcomp(void)
 	}
 	sleep_dbg("MAX17040 SET_RCOMP TRY : [%d]\n",i);			
 }
-#ifndef FEATURE_SKY_BATTERY_MAX17040
 static void max17040_quick_get_soc(void)
 {
 	u8 msb=0;
@@ -832,7 +831,6 @@ static void max17040_quick_get_soc(void)
 	mutex_unlock(&max17040_data.data_mutex);
 	dbg_func_out();		
 }
-#endif
 static void max17040_quick_get_vcell(void)
 {
 	u8 msb=0;
@@ -968,6 +966,7 @@ static void max17040_get_soc(void)
 	*/
 	avalue=SKY_MULT_1000(msb)+(SKY_MULT_1000(lsb)/SKY_SOC_LSB);	
 	//Ajdusted soc%=(SOC%-EMPTY)/(FULL-EMPTY)*100
+
 #ifdef FEATURE_SKY_BATTERY_MAX17040
 	if(avalue>=4435)
 		soc=(((avalue-SKY_MULT_100(SKY_SOC_EMPTY))*100)/(SKY_MULT_100(SKY_SOC_FULL)-SKY_MULT_100(SKY_SOC_EMPTY)));
@@ -1360,9 +1359,10 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	max17040_get_version();
 	//read vell and soc 
 	max17040_quick_get_vcell();
-	#ifndef FEATURE_SKY_BATTERY_MAX17040
+//hglim 	#ifndef FEATURE_SKY_BATTERY_MAX17040
 	max17040_quick_get_soc();
 	
+	#ifndef FEATURE_SKY_BATTERY_MAX17040
 	//check quick start
 	aflag=max17040_check_restart(max17040_data.quick_data.quick_vcell,max17040_data.quick_data.quick_soc);
 	if(aflag)

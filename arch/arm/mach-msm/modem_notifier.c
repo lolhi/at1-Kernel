@@ -51,28 +51,14 @@ static void notify_work_start_reset(struct work_struct *work)
 }
 static DECLARE_WORK(modem_notifier_start_reset_work, &notify_work_start_reset);
 
-#if defined(CONFIG_PANTECH_ERROR_LOG)
-extern void pantech_errlog_display_add_log(const char *log, int size);
-extern void pantech_errlog_display_with_errlog(bool mArm, bool do_panic);
-#endif
-
 void modem_queue_start_reset_notify(void)
 {
 	int ret;
-#if defined(CONFIG_PANTECH_ERROR_LOG)
-    char *str = "ARM11 ERROR STATUS\n";
-#endif
 
 	ret = queue_work(modem_notifier_wq, &modem_notifier_start_reset_work);
 
 	if (!ret)
 		printk(KERN_ERR "%s\n", __func__);
-#if defined(CONFIG_PANTECH_ERROR_LOG)
-    if (ret) {
-        pantech_errlog_display_add_log(str, strlen(str));
-        pantech_errlog_display_with_errlog(true, false);
-    }
-#endif
 }
 EXPORT_SYMBOL(modem_queue_start_reset_notify);
 

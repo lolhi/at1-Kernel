@@ -103,8 +103,8 @@ DFLAGS += -DBCMSDIO -DBCMSDIOH_SPI -DTESTDONGLE
 CFILES += bcmsdspi.c bcmsdspi_linux.c 
 endif
 
-CFLAGS += $(DFLAGS) $(WFLAGS) $(IFLAGS) -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -mtune=cortex-a8 -marm -march=armv7-a -mfpu=neon -ftree-vectorize -mvectorize-with-neon-quad
-#-fshort-wchar 
+CFLAGS += -fshort-wchar $(DFLAGS) $(WFLAGS) $(IFLAGS)
+
 LDFLAGS := -r
 MODULES := bcmsdh_driver.o
 ifeq ($(BCM_KVER), 2.6)

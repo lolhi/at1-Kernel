@@ -286,8 +286,6 @@ static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 	struct cpuinfo_arm *cpu_info = &per_cpu(cpu_data, cpuid);
 
 	cpu_info->loops_per_jiffy = loops_per_jiffy;
-
-	store_cpu_topology(cpuid);
 }
 
 /*
@@ -378,8 +376,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int ncores = num_possible_cpus();
 
-	init_cpu_topology();
-
 	smp_store_cpu_info(smp_processor_id());
 
 	/*
@@ -388,20 +384,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
-	if (ncores > 1 && max_cpus) {
+	if (max_cpus > 1) {
 		/*
 		 * Enable the local timer or broadcast device for the
 		 * boot CPU, but only if we have more than one CPU.
 		 */
 		percpu_timer_setup();
-
-		/*
-		 * Initialise the present map, which describes the set of CPUs
-		 * actually populated at the present time. A platform should
-		 * re-initialize the map in platform_smp_prepare_cpus() if
-		 * present != possible (e.g. physical hotplug).
-		 */
-		init_cpu_present(&cpu_possible_map);
 
 		/*
 		 * Initialise the SCU if there are more than one CPU
@@ -473,7 +461,9 @@ static DEFINE_PER_CPU(struct clock_event_device, percpu_clockevent);
 static void ipi_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(percpu_clockevent);
+	irq_enter();
 	evt->event_handler(evt);
+	irq_exit();
 }
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
@@ -627,9 +617,7 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		/* Wake up from WFI/WFE using SGI */
 		break;
 	case IPI_TIMER:
-		irq_enter();
 		ipi_timer();
-		irq_exit();
 		break;
 
 	case IPI_RESCHEDULE:
@@ -637,21 +625,18 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CALL_FUNC:
-		irq_enter();
 		generic_smp_call_function_interrupt();
-		irq_exit();
 		break;
 
 	case IPI_CALL_FUNC_SINGLE:
-		irq_enter();
 		generic_smp_call_function_single_interrupt();
-		irq_exit();
 		break;
 
-	case IPI_CPU_STOP:
-		irq_enter();
+	case IPI_CPU_STOP:	
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING //p14291_smp
+		__save_regs_and_mmu(regs, false);
+#endif
 		ipi_cpu_stop(cpu);
-		irq_exit();
 		break;
 
 	case IPI_CPU_BACKTRACE:

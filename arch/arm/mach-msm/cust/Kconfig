@@ -7,7 +7,42 @@ if CUST_PANTECH_H
 config PANTECH_DOMESTIC
   bool
 
+config PANTECH_DEBUG_ON
+    bool
+    default n
+    select PANTECH_DEBUG
+    help
+        this config is dummy. you do not use this config.
+        this config is used to just delete few configure when build environment is user-build-mode.
 
+config PANTECH_DEBUG
+    bool "PANTECH Debug Configuration"
+    default n
+    select PANTECH_DEBUG_SCHED_LOG
+    select PANTECH_DEBUG_IRQ_LOG
+    select PANTECH_DEBUG_DCVS_LOG
+    select PANTECH_DEBUG_RPM_LOG
+
+config PANTECH_DEBUG_SCHED_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default n
+
+config PANTECH_DEBUG_IRQ_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default n	
+
+config PANTECH_DEBUG_DCVS_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default n	
+
+config PANTECH_DEBUG_RPM_LOG
+	bool
+	depends on PANTECH_DEBUG
+	default n
+	
 comment "PANTECH USB Driver"
 config ANDROID_PANTECH_USB
   bool "PANTECH USB"
@@ -72,6 +107,5 @@ config ANDROID_PANTECH_USB_ABNORMAL_CHARGER_INFO
   default y
      help
 	 Support ABNORMAL CHARGER
-
 endif
 

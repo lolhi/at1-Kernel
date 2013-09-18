@@ -26,6 +26,11 @@
 #include <linux/ktime.h>
 #include <linux/types.h>
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_pantech_dbg
+#include <mach/pantech_apanic.h>
+#endif
+#endif
 
 #define PANIC_TIMER_STEP 100
 #define PANIC_BLINK_SPD 18
@@ -38,11 +43,6 @@ static unsigned long tainted_mask;
 static int pause_on_oops;
 static int pause_on_oops_flag;
 static DEFINE_SPINLOCK(pause_on_oops_lock);
-
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-extern void apainc_kernel_stack_dump_end(void);
-extern void pantech_errlog_display_put_log(const char *log, int size);
-#endif
 
 #ifndef CONFIG_PANIC_TIMEOUT
 #define CONFIG_PANIC_TIMEOUT 0
@@ -90,12 +90,6 @@ NORET_TYPE void panic(const char * fmt, ...)
 	va_list args;
 	long i, i_next = 0;
 	int state = 0;
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	static char dispbuf[1024];
-#endif
-#if 0//block because of error
-	unsigned char index=0;
-#endif
 
 	/*
 	 * It's possible to come here directly from a panic-assertion and
@@ -104,27 +98,24 @@ NORET_TYPE void panic(const char * fmt, ...)
 	 */
 	preempt_disable();
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_pantech_dbg
+	pantechdbg_sched_msg("!!panic!!");
+#endif
+#endif
+
 	console_verbose();
 	bust_spinlocks(1);
 	va_start(args, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, args);
 	va_end(args);
 
-#if 0//block because of error
-	
-	printk(KERN_EMERG "#### WAKELOCK: pre_wakelock cnt[%d] for_wakelock_cnt[%d]\n ####",pre_wakelock_print,for_wakelock_print);
-	printk(KERN_EMERG "#### WAKELOCK: name_index[%d] \n ####",name_index);
-	for(index=0;index<3;index++)
-	printk(KERN_EMERG "#### WAKELOCK: wakelock_name[%s] time[%lld]\n ####",wakelock_name[index],wakelock_time_array[index]);
-
-#endif
-
 	printk(KERN_EMERG "Kernel panic - not syncing: %s\n",buf);
 
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	apainc_kernel_stack_dump_end();
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING //p14291_smp
+	__save_regs_and_mmu_in_panic();
 #endif
-  
+
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 	dump_stack();
 #endif
@@ -154,23 +145,10 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 	if (panic_timeout > 0) {
 
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING  
-		printk(KERN_EMERG "Rebooting cause of Linux Crash ");
-		if(arm_crash_reset){
-			arm_crash_reset();
-		} 
-#endif  
 		/*
 		 * Delay timeout seconds before rebooting the machine.
 		 * We can't use the "normal" timers since we just panicked.
 		 */
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-		strcpy(dispbuf,"\n\n     [ERROR LOG]\n\n");
-		strcat(dispbuf,"\n\n     Rebooting cause of Crash\n\n");
-		strcat(dispbuf,"\n\n     Press Power key for reboot\n\n");
-		strcat(dispbuf,"\n\n     Wait a minute for saving logs until rebooting \n\n");  
-		pantech_errlog_display_put_log(dispbuf, strlen(dispbuf));
-#endif
 		printk(KERN_EMERG "Rebooting in %d seconds..", panic_timeout);
 
 // paiksun...
@@ -301,16 +279,8 @@ void add_taint(unsigned flag)
 	 * Also we want to keep up lockdep for staging development and
 	 * post-warning case.
 	 */
-	switch (flag) {
-	case TAINT_CRAP:
-	case TAINT_WARN:
-	case TAINT_FIRMWARE_WORKAROUND:
-		break;
-
-	default:
-		if (__debug_locks_off())
-			printk(KERN_WARNING "Disabling lock debugging due to kernel taint\n");
-	}
+	if (flag != TAINT_CRAP && flag != TAINT_WARN && __debug_locks_off())
+		printk(KERN_WARNING "Disabling lock debugging due to kernel taint\n");
 
 	set_bit(flag, &tainted_mask);
 }

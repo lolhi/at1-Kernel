@@ -2455,11 +2455,17 @@ EXPORT_SYMBOL(voice_auddev_cb_function);
 #ifdef CONFIG_SKYSND_CTRL
 int voice_set_voc_path_full_reset(void) // abnormal process reset.
 {
+	int rc = 0;
+
 	q6voice_info("%s\n", __func__);
+
 	mutex_lock(&common.common_lock);
+
     common.voc_path = VOC_PATH_PASSIVE;
+
 	mutex_unlock(&common.common_lock);
-	return 0;
+
+	return rc;
 }
 #endif
 

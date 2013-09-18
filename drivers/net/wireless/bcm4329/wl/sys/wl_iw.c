@@ -942,14 +942,25 @@ wl_iw_set_keep_alive(
 	char *p = extra;
 	int error = -1;
 	int period_offset;
-	int period_size;
-	char buf_period[12];
+//	int period_size;
+//	char buf_period[12];
 	wl_keep_alive_pkt_t pkt;
 
   WL_TRACE(("%s, wl_iw_set_keep_alive command\n", __FUNCTION__));
 
 	period_offset = strcspn(extra, " ");
+
+	if ( period_offset == 10000 )
+	{
+		WL_ERROR(("%s: period error\n", __FUNCTION__));
+		goto exit;
+	}
+
+  /*
+
+	period_offset = strcspn(extra, " ");
 	period_size = strlen(extra) - period_offset;
+
 
 	if ( period_offset == 0 )
 	{
@@ -957,11 +968,15 @@ wl_iw_set_keep_alive(
 		goto exit;
 	}
 
-	/* set period */
+	/ * set period * /
 	strncpy(buf_period, extra + period_offset +1,
 			MIN(period_size, sizeof(buf_period)));
 
 	pkt.period_msec = bcm_atoi(buf_period);
+*/
+	pkt.period_msec = 30000;
+
+	
 	pkt.len_bytes = 0;
 
 	if((error = dev_wlc_bufvar_set(dev, "keep_alive", (char*)&pkt, sizeof(wl_keep_alive_pkt_t))) < 0) {
@@ -5293,24 +5308,12 @@ wl_iw_set_pmksa(
 		if ((pmkid_list.pmkids.npmkid > 0) && (i < pmkid_list.pmkids.npmkid)) {
 			bzero(&pmkid_list.pmkids.pmkid[i], sizeof(pmkid_t));
 			for (; i < (pmkid_list.pmkids.npmkid - 1); i++) {
-				if (i == 0)
-				{
-					bcopy(&pmkid_list.foo[0].BSSID,
-						&pmkid_list.pmkids.pmkid[i].BSSID,
-						ETHER_ADDR_LEN);
-					bcopy(&pmkid_list.foo[0].PMKID,
-						&pmkid_list.pmkids.pmkid[i].PMKID,
-						WPA2_PMKID_LEN);
-				}
-				else
-				{
-					bcopy(&pmkid_list.foo[i+1].BSSID,
-						&pmkid_list.foo[i].BSSID,
-						ETHER_ADDR_LEN);
-					bcopy(&pmkid_list.foo[i+1].PMKID,
- 						&pmkid_list.foo[i].PMKID,
+				bcopy(&pmkid_list.pmkids.pmkid[i+1].BSSID,
+					&pmkid_list.pmkids.pmkid[i].BSSID,
+					ETHER_ADDR_LEN);
+				bcopy(&pmkid_list.pmkids.pmkid[i+1].PMKID,
+					&pmkid_list.pmkids.pmkid[i].PMKID,
 					WPA2_PMKID_LEN);
-				}
 			}
 			pmkid_list.pmkids.npmkid--;
 		}
@@ -7352,9 +7355,17 @@ static int wl_iw_set_priv(
 #ifdef CONFIG_MACH_MAHIMAHI
 	    else if (strnicmp(extra, "POWERMODE", strlen("POWERMODE")) == 0)
 			ret = wl_iw_set_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
-	    else if (strnicmp(extra, "BTCOEXMODE", strlen("BTCOEXMODE")) == 0)
-			ret = wl_iw_set_btcoex_dhcp(dev, info, (union iwreq_data *)dwrq, extra);
+	    else if (strnicmp(extra, "BTCOEXMODE", strlen("BTCOEXMODE")) == 0){
 	    
+			WL_TRACE(("%s, BTCOEXMODE command\n", __FUNCTION__));
+			
+			ret = wl_iw_set_btcoex_dhcp(dev, info, (union iwreq_data *)dwrq, extra);
+
+			WL_TRACE(("%s, wl_iw_set_keep_alive command\n", __FUNCTION__));
+
+			
+			wl_iw_set_keep_alive(dev, info, (union iwreq_data *)dwrq, extra);
+	    }
 	    else if (strnicmp(extra, "GETPOWER", strlen("GETPOWER")) == 0)
 			ret = wl_iw_get_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
 #else

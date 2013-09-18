@@ -367,7 +367,7 @@ void sky_sys_rst_set_prev_reset_info(void)
   void *restart_addr;
   int reason;
   
-  restart_addr = ioremap_nocache(RESTART_REASON_ADDR, 0x1000);
+  restart_addr = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, 0x1000);
   reason = readl(restart_addr);
   iounmap(restart_addr);
   switch(reason)

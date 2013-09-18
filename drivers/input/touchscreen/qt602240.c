@@ -4153,7 +4153,7 @@ void  get_message(struct work_struct * p)
 		}
 
 		x = (quantum_msg[2] << 2) | (quantum_msg[4] >> 6);
-		y = (quantum_msg[3] << 2) | ((quantum_msg[4] & 0x6) >> 2);
+		y = (quantum_msg[3] << 2) | ((quantum_msg[4] & 0x0c) >> 2);
 		//y = (quantum_msg[3] << 4) | (quantum_msg[4] & 0xf); //if y resolution is bigger than 1024
 		size = quantum_msg[5];
 

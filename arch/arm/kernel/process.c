@@ -241,9 +241,6 @@ void cpu_idle(void)
 #endif
 
 			local_irq_disable();
-#ifdef CONFIG_PL310_ERRATA_769419
-			wmb();
-#endif
 			if (hlt_counter) {
 				local_irq_enable();
 				cpu_relax();
@@ -375,56 +372,76 @@ static void show_extra_register_data(struct pt_regs *regs, int nbytes)
 	set_fs(fs);
 }
 
+
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
 
 #define LINUX_SAVE_INFO_MAGIC 0xBADC0257
 
 struct mmu_type {
-	unsigned int transbase;
-	unsigned int dac;
 	unsigned int control;
+	unsigned int transbase0;
+	unsigned int dac;
+	unsigned int transbase1;
+	unsigned int prrr;
+	unsigned int nmrr;
 };
 
 struct save_info_type {
 	unsigned int magic_num;
-	struct pt_regs regs;
-#ifdef CONFIG_CPU_CP15_MMU
-	struct mmu_type mmu;
-#endif
+	struct pt_regs regs[2];
+	struct mmu_type mmu[2];
+	unsigned int die_cpu;
 };
 
-static struct save_info_type save_info;
+static struct save_info_type smp_save_info;
 
-struct pt_regs *__get_regs_crashed(void)
+void __save_regs_and_mmu(struct pt_regs *regs, bool is_die)
 {
-	return (struct pt_regs *)&save_info.regs;
+    int cpu = smp_processor_id();
+	
+	memset((unsigned char *)&smp_save_info.regs[cpu], 0, sizeof(struct pt_regs));
+	memcpy((unsigned char *)&smp_save_info.regs[cpu], (unsigned char *)regs, sizeof(struct pt_regs));
+
+	asm("mrc p15,0,%0,c1,c0,0" : "=r" (smp_save_info.mmu[cpu].control));
+	asm("mrc p15,0,%0,c2,c0,0" : "=r" (smp_save_info.mmu[cpu].transbase0));
+	asm("mrc p15,0,%0,c3,c0,0" : "=r" (smp_save_info.mmu[cpu].dac));
+	asm("mrc p15,0,%0,c2,c0,1" : "=r" (smp_save_info.mmu[cpu].transbase1));
+	asm("mrc p15,0,%0,c10,c2,0" : "=r" (smp_save_info.mmu[cpu].prrr));
+	asm("mrc p15,0,%0,c10,c2,1" : "=r" (smp_save_info.mmu[cpu].nmrr));
+
+    if(is_die){
+		smp_save_info.die_cpu = cpu;
+    }
+	
+	smp_save_info.magic_num = LINUX_SAVE_INFO_MAGIC;
 }
 
-void __save_regs_and_mmu(struct pt_regs *regs)
+void __save_regs_and_mmu_in_panic(void)
 {
-	memset((unsigned char *)&save_info,0,sizeof(struct save_info_type));
+    int cpu = smp_processor_id();
+	
+    if(smp_save_info.magic_num == LINUX_SAVE_INFO_MAGIC)
+		return;
 
-	memcpy((unsigned char *)&save_info.regs,(unsigned char *)regs,sizeof(struct pt_regs));
+	memset((unsigned char *)&smp_save_info.regs[cpu], 0, sizeof(struct pt_regs));
+	
+	asm volatile("\
+	stmia	%0, {r0-r12,sp,lr,pc}"	
+	:
+	: "r" (&smp_save_info.regs[cpu]));
+	
+	__asm__ volatile("mrs	%0, cpsr" : "=r" (smp_save_info.regs[cpu].uregs[16]));
 
-#ifdef CONFIG_CPU_CP15
-	{
-		unsigned int ctrl;
-#ifdef CONFIG_CPU_CP15_MMU
-		{
-			unsigned int transbase, dac;
-			asm("mrc p15, 0, %0, c2, c0\n\t"
-                        "mrc p15, 0, %1, c3, c0\n"
-                        : "=r" (transbase), "=r" (dac));
+	asm("mrc p15,0,%0,c1,c0,0" : "=r" (smp_save_info.mmu[cpu].control));
+	asm("mrc p15,0,%0,c2,c0,0" : "=r" (smp_save_info.mmu[cpu].transbase0));
+	asm("mrc p15,0,%0,c3,c0,0" : "=r" (smp_save_info.mmu[cpu].dac));
+	asm("mrc p15,0,%0,c2,c0,1" : "=r" (smp_save_info.mmu[cpu].transbase1));
+	asm("mrc p15,0,%0,c10,c2,0" : "=r" (smp_save_info.mmu[cpu].prrr));
+	asm("mrc p15,0,%0,c10,c2,1" : "=r" (smp_save_info.mmu[cpu].nmrr));
 
-			save_info.mmu.transbase = transbase; 
-			save_info.mmu.dac             = dac;
-		}
-#endif
-		asm("mrc p15, 0, %0, c1, c0\n" : "=r" (ctrl));
-		save_info.mmu.control      = ctrl;
-	}
-#endif
-      save_info.magic_num = LINUX_SAVE_INFO_MAGIC;
+	smp_save_info.die_cpu = cpu;
+	
+	smp_save_info.magic_num = LINUX_SAVE_INFO_MAGIC;
 }
 #endif
 
@@ -432,9 +449,6 @@ void __show_regs(struct pt_regs *regs)
 {
 	unsigned long flags;
 	char buf[64];
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	char symbuf[64];
-#endif
 
 	printk("CPU: %d    %s  (%s %.*s)\n",
 		raw_smp_processor_id(), print_tainted(),
@@ -442,10 +456,6 @@ void __show_regs(struct pt_regs *regs)
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-	sprint_symbol(symbuf,instruction_pointer(regs));
-	printcrash("PC Crash at %s\n",symbuf);
-#endif
 	print_symbol("LR is at %s\n", regs->ARM_lr);
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 	       "sp : %08lx  ip : %08lx  fp : %08lx\n",

@@ -356,6 +356,9 @@ ssize_t logger_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	now = current_kernel_time();
 
 	header.pid = current->tgid;
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
+    header.__pad = 0x14;
+#endif
 	header.tid = current->pid;
 	header.sec = now.tv_sec;
 	header.nsec = now.tv_nsec;

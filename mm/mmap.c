@@ -1581,7 +1581,7 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 	if (mm) {
 		/* Check the cache first. */
 		/* (Cache hit rate is typically around 35%.) */
-		vma = ACCESS_ONCE(mm->mmap_cache);
+		vma = mm->mmap_cache;
 		if (!(vma && vma->vm_end > addr && vma->vm_start <= addr)) {
 			struct rb_node * rb_node;
 
@@ -2108,18 +2108,6 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 }
 
 EXPORT_SYMBOL(do_munmap);
-
-int vm_munmap(unsigned long start, size_t len)
-{
-        int ret;
-        struct mm_struct *mm = current->mm;
-
-        down_write(&mm->mmap_sem);
-        ret = do_munmap(mm, start, len);
-        up_write(&mm->mmap_sem);
-        return ret;
-}
-EXPORT_SYMBOL(vm_munmap);
 
 SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {

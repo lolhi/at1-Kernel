@@ -449,6 +449,8 @@ EXPORT_SYMBOL(seq_path);
 
 /*
  * Same as seq_path, but relative to supplied root.
+ *
+ * root may be changed, see __d_path().
  */
 int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 		  char *esc)
@@ -461,8 +463,6 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 		char *p;
 
 		p = __d_path(path, root, buf, size);
-		if (!p)
-			return SEQ_SKIP;
 		res = PTR_ERR(p);
 		if (!IS_ERR(p)) {
 			char *end = mangle_path(buf, p, esc);
@@ -474,7 +474,7 @@ int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 	}
 	seq_commit(m, res);
 
-	return res < 0 && res != -ENAMETOOLONG ? res : 0;
+	return res < 0 ? res : 0;
 }
 
 /*
@@ -641,39 +641,6 @@ int seq_puts(struct seq_file *m, const char *s)
 	return -1;
 }
 EXPORT_SYMBOL(seq_puts);
-
-/*
- * A helper routine for putting decimal numbers without rich format of printf().
- * only 'unsigned long long' is supported.
- * This routine will put one byte delimiter + number into seq_file.
- * This routine is very quick when you show lots of numbers.
- * In usual cases, it will be better to use seq_printf(). It's easier to read.
- */
-int seq_put_decimal_ull(struct seq_file *m, char delimiter,
-			unsigned long long num)
-{
-	int len;
-
-	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
-		goto overflow;
-
-	m->buf[m->count++] = delimiter;
-
-	if (num < 10) {
-		m->buf[m->count++] = num + '0';
-		return 0;
-	}
-
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
-	if (!len)
-		goto overflow;
-	m->count += len;
-	return 0;
-overflow:
-	m->count = m->size;
-	return -1;
-}
-EXPORT_SYMBOL(seq_put_decimal_ull);
 
 /**
  * seq_write - write arbitrary data to buffer

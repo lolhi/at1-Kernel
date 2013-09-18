@@ -98,7 +98,12 @@ SIDE EFFECTS
   None.
 
 ===========================================================================*/
-static void get_packet_size(uint8  frame_type, uint16 *if1, uint16 *if2)
+static void get_packet_size
+(
+  uint8  frame_type,
+  uint16    *if1,
+  uint16    *if2
+)
 {
     switch (frame_type)
     {
@@ -183,7 +188,15 @@ SIDE EFFECTS
   None.
 
 ===========================================================================*/
-uint16 qvp_if1_to_if2(const void  *if1, uint16 octets_in, void *if2, uint16 max_octets_out, uint16 *octet_count, uint32 *packet_count)
+uint16 qvp_if1_to_if2
+(
+  const void  *if1,
+  uint16      octets_in,
+  void        *if2,
+  uint16      max_octets_out,
+  uint16      *octet_count,
+  uint32      *packet_count
+)
 {
     uint16 if1_size, if2_size;
     uint16 if1_index, if2_index;
@@ -303,7 +316,15 @@ SIDE EFFECTS
   None.
 
 ===========================================================================*/
-uint16 qvp_if2_to_if1(const void  *if2, uint16 octets_in, void *if1, uint16 max_octets_out, uint16 *octet_count, uint32 *packet_count)
+uint16 qvp_if2_to_if1
+(
+  const void  *if2,
+  uint16      octets_in,
+  void        *if1,
+  uint16      max_octets_out,
+  uint16      *octet_count,
+  uint32      *packet_count
+)
 {
     uint16 if1_size, if2_size;
     uint16 if1_index, if2_index;
@@ -319,10 +340,13 @@ uint16 qvp_if2_to_if1(const void  *if2, uint16 octets_in, void *if1, uint16 max_
 
     /* Zero out octet and packet counts, if given. */
     if (octet_count)
+    {
         *octet_count = 0;
-
+    }
     if (packet_count)
+    {
         *packet_count = 0;
+    }
 
     /* Repeat until we run out of input or space for output. */
     if1_index = if2_index = 0;

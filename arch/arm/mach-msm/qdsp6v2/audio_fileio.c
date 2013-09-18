@@ -15,6 +15,11 @@ struct file *audiofs_fopen(const char *filename, int flags, int mode)
 	return (IS_ERR(filp))? NULL : filp;
 }
 
+void audiofs_fremove(const char *filename)
+{
+	sys_unlink(filename);
+}
+
 void audiofs_fclose(struct file *filp)
 {
 	if(filp)
@@ -39,15 +44,11 @@ int audiofs_fseek(struct file *filp, int offset, int whence)
 		return -ENOENT;
 }
 
-/*void audiofs_fremove(const char *filename)
-{
-	sys_unlink(filename);
-}
-
 int audiofs_ftell(struct file *filp)
 {
-	if(filp)
+	if(filp) {
 		return filp->f_pos;
+	}
 
 	return -ENOENT;
 }
@@ -59,9 +60,9 @@ int audiofs_fread(struct file *filp, char *buf, int len)
 
 	if(filp == NULL)
 		return -ENOENT;
-	else if(filp->f_op->read == NULL)
+	if(filp->f_op->read == NULL)
 		return -ENOSYS;
-	else if(((filp->f_flags & O_ACCMODE) & O_RDONLY) != 0)
+	if(((filp->f_flags & O_ACCMODE) & O_RDONLY) != 0)
 		return -EACCES;
 	
 	oldfs = get_fs();
@@ -85,6 +86,52 @@ int audiofs_fgetc(struct file *filp)
 		return EOF;
 	else 
 		return len;
+}
+
+int panech_fgets(struct file *filp, char *str, int size)
+{
+	char *cp;
+	int len, readlen;
+	mm_segment_t oldfs;
+
+	if(filp && filp->f_op->read && ((filp->f_flags & O_ACCMODE) & O_WRONLY) == 0) {
+		oldfs = get_fs();
+		set_fs(KERNEL_DS);
+
+		for(cp  = str, len = -1, readlen = 0; readlen < size - 1; ++cp, ++readlen) { 
+
+			if((len = filp->f_op->read(filp, cp, 1, &filp->f_pos)) <= 0)
+				break;
+			if(*cp == '\n') {
+				++cp;
+				++readlen;
+				break;
+			}
+		}
+		*cp = 0;
+		set_fs(oldfs);
+		return (len < 0 || readlen == 0)? 0 : 1;
+	} else
+		return 0;
+}
+
+int audiofs_fwrite(struct file *filp, char *buf, int len)
+{
+	int writelen;
+	mm_segment_t oldfs;
+
+	if(filp == NULL)
+		return -ENOENT;
+	if(filp->f_op->write == NULL)
+		return -ENOSYS;
+	if(((filp->f_flags & O_ACCMODE) & (O_WRONLY | O_RDWR)) == 0)
+		return -EACCES;
+	oldfs = get_fs();
+	set_fs(KERNEL_DS);
+	writelen = filp->f_op->write(filp, buf, len, &filp->f_pos);
+	set_fs(oldfs);
+
+	return writelen;
 }
 
 int audiofs_fputc(struct file *filp, int ch)
@@ -117,51 +164,4 @@ int audiofs_fprintf(struct file *filp, const char *fmt, ...)
 	return audiofs_fputs(filp, s_buf);
 }
 
-// already in other file
-int panech_fgets(struct file *filp, char *str, int size)
-{
-	char *cp;
-	int len, readlen;
-	mm_segment_t oldfs;
-
-	if(filp && filp->f_op->read && ((filp->f_flags & O_ACCMODE) & O_WRONLY) == 0) {
-		oldfs = get_fs();
-		set_fs(KERNEL_DS);
-
-		for(cp  = str, len = -1, readlen = 0; readlen < size - 1; ++cp, ++readlen) { 
-
-			if((len = filp->f_op->read(filp, cp, 1, &filp->f_pos)) <= 0)
-				break;
-			if(*cp == '\n') {
-				++cp;
-				++readlen;
-				break;
-			}
-		}
-		*cp = 0;
-		set_fs(oldfs);
-		return (len < 0 || readlen == 0)? 0 : 1;
-	} else
-		return 0;
-}*/
-
-
-int audiofs_fwrite(struct file *filp, char *buf, int len)
-{
-	int writelen;
-	mm_segment_t oldfs;
-
-	if(filp == NULL)
-		return -ENOENT;
-	if(filp->f_op->write == NULL)
-		return -ENOSYS;
-	if(((filp->f_flags & O_ACCMODE) & (O_WRONLY | O_RDWR)) == 0)
-		return -EACCES;
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	writelen = filp->f_op->write(filp, buf, len, &filp->f_pos);
-	set_fs(oldfs);
-
-	return writelen;
-}
 

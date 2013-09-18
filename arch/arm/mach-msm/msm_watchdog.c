@@ -49,7 +49,60 @@ static unsigned long bark_time;
 static unsigned long long last_pet;
 
 #ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-static int stack_dump_disable = 0;
+#define TZBSP_CPU_COUNT           2
+typedef  unsigned int uint32;
+
+typedef struct tzbsp_dump_cpu_ctx_s
+{
+  uint32 mon_lr;
+  uint32 mon_spsr;
+  uint32 usr_r0;
+  uint32 usr_r1;
+  uint32 usr_r2;
+  uint32 usr_r3;
+  uint32 usr_r4;
+  uint32 usr_r5;
+  uint32 usr_r6;
+  uint32 usr_r7;
+  uint32 usr_r8;
+  uint32 usr_r9;
+  uint32 usr_r10;
+  uint32 usr_r11;
+  uint32 usr_r12;
+  uint32 usr_r13;
+  uint32 usr_r14;
+  uint32 irq_spsr; /* Monitor expects a pointer here for the context saving. */
+  uint32 irq_r13;
+  uint32 irq_r14;
+  uint32 svc_spsr;
+  uint32 svc_r13;
+  uint32 svc_r14;
+  uint32 abt_spsr;
+  uint32 abt_r13;
+  uint32 abt_r14;
+  uint32 und_spsr;
+  uint32 und_r13;
+  uint32 und_r14;
+  uint32 fiq_spsr;
+  uint32 fiq_r8;
+  uint32 fiq_r9;
+  uint32 fiq_r10;
+  uint32 fiq_r11;
+  uint32 fiq_r12;
+  uint32 fiq_r13;
+  uint32 fiq_r14;
+} tzbsp_dump_cpu_ctx_t;
+
+typedef struct tzbsp_dump_buf_s
+{
+  uint32 sc_status[TZBSP_CPU_COUNT];
+  tzbsp_dump_cpu_ctx_t sc_ns[TZBSP_CPU_COUNT];
+  tzbsp_dump_cpu_ctx_t sec;
+} tzbsp_dump_buf_t;
+
+#define TZBSP_IMEM_CTX_BUFFER_ADDR  0x2a05f658
+void* g_tzbsp_ctx_buf_ns_addr = (void*)TZBSP_IMEM_CTX_BUFFER_ADDR;
+tzbsp_dump_buf_t* g_tzbsp_ctx_buf_ns = NULL;
 #endif
 
 /*
@@ -78,11 +131,7 @@ module_param_call(runtime_disable, wdog_enable_set, param_get_int,
  * On the kernel command line specify msm_watchdog.appsbark=1 to handle
  * watchdog barks in Linux. By default barks are processed by the secure side.
  */
-#ifdef CONFIG_PANTECH_SKY
-static int appsbark=1;
-#else
 static int appsbark;
-#endif
 module_param(appsbark, int, 0);
 
 /*
@@ -276,21 +325,9 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 		msm_watchdog_resume(NULL);
 	}
 
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-  stack_dump_disable = 1;
-#endif
-
 	panic("Apps watchdog bark received!");
 	return IRQ_HANDLED;
 }
-
-#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
-int pantech_kernel_stack_dump_disable(void)
-{
-	return stack_dump_disable;
-}
-EXPORT_SYMBOL(pantech_kernel_stack_dump_disable);
-#endif
 
 #define SCM_SET_REGSAVE_CMD 0x2
 

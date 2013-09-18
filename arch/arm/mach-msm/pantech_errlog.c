@@ -188,11 +188,6 @@ static const UINT16 day_offset[] = {
   1+2+1+1                               /* Year 3             */
 };
 
-// paiksun...
-#ifdef CONFIG_SW_RESET
-extern int pm8058_get_pwrkey_status(void);
-#endif
-
 static UINT32 tmr_GetLocalTime(void)
 {
     struct timeval tv;
@@ -1458,16 +1453,6 @@ void pantech_errlog_display_with_errlog(bool bmArm, bool do_panic)
 
         //lcd_panel_power_on(bmArm);
         lcd_panel_power_on(true);
-
-// paiksun...
-#ifdef CONFIG_SW_RESET
-        while(!pm8058_get_pwrkey_status())
-        {
-		writel(1, WDT0_RST);
-                mdelay(1000);
-                printk(KERN_INFO " pwrkey in released..");
-        }
-#endif
 #endif
 		if (do_panic) {
 			panic("go to panic state by SW");

@@ -54,11 +54,7 @@
 
 #define PSHOLD_CTL_SU (MSM_TLMM_BASE + 0x820)
 
-#ifndef MODEL_SKY
 #define RESTART_REASON_ADDR 0x65C
-#else
-#define RESTART_REASON_ADDR_ICS 0x65C
-#endif
 
 #define DLOAD_MODE_ADDR     0x0
 
@@ -82,15 +78,6 @@ static void __iomem *msm_tmr0_base;
 #define SDCARD_REBOOT_OK		0xCECEECEC
 #endif
 
-#ifdef CONFIG_SW_RESET
-#if defined(CONFIG_PANTECH_ERROR_LOG)
-extern void pantech_errlog_display_add_log(const char *log, int size);
-extern void pantech_errlog_noti_crash_to_marm(uint32_t reason);
-extern void pantech_errlog_display_with_errlog(bool bmArm, bool do_panic);
-extern void pantech_errlog_add_log(const char *log, int size);
-#endif
-
-#endif
 #ifdef CONFIG_SKY_CHARGING
 #define NORMAL_RESET_MAGIC_NUM 0xbaabcddc
 #endif
@@ -116,9 +103,6 @@ static struct notifier_block panic_blk = {
 	.notifier_call	= panic_prep_restart,
 };
 
-#ifdef MODEL_SKY
-#define set_dload_mode(x) do {} while (0)
-#else
 static void set_dload_mode(int on)
 {
 	if (dload_mode_addr) {
@@ -128,7 +112,6 @@ static void set_dload_mode(int on)
 		mb();
 	}
 }
-#endif
 
 static int dload_set(const char *val, struct kernel_param *kp)
 {
@@ -145,10 +128,7 @@ static int dload_set(const char *val, struct kernel_param *kp)
 		download_mode = old_val;
 		return -EINVAL;
 	}
-
-#ifndef MODEL_SKY
 	set_dload_mode(download_mode);
-#endif
 
 	return 0;
 }
@@ -167,7 +147,7 @@ static void __msm_power_off(int lower_pshold)
 #ifdef CONFIG_SKY_CHARGING
 	void *restart_reason;
 
-	restart_reason = ioremap_nocache(RESTART_REASON_ADDR, SZ_4K);
+	restart_reason = ioremap_nocache(PANTECH_RESTART_REASON_ADDR, SZ_4K);
     	writel(0x00, restart_reason);
     	writel(0x00, restart_reason+4);
         iounmap(restart_reason);
@@ -249,26 +229,19 @@ int sky_reset_reason=SYS_RESET_REASON_UNKNOWN;
 #endif
 void arch_reset(char mode, const char *cmd)
 {
-
 #ifdef CONFIG_MSM_DLOAD_MODE
-
 	/* This looks like a normal reboot at this point. */
 	set_dload_mode(0);
 
 	/* Write download mode flags if we're panic'ing */
 	set_dload_mode(in_panic);
 
-#ifndef CONFIG_PANTECH_ERR_CRASH_LOGGING
 	/* Write download mode flags if restart_mode says so */
 	if (restart_mode == RESTART_DLOAD)
 		set_dload_mode(1);
-#endif
 
 	/* Kill download mode if master-kill switch is set */
-// paiksun...
-#ifndef MODEL_SKY
 	if (!download_mode)
-#endif
 		set_dload_mode(0);
 #endif
 
@@ -285,22 +258,17 @@ void arch_reset(char mode, const char *cmd)
 #ifdef FEATURE_SKY_SDCARD_UPGRADE
 		} else if (!strncmp(cmd, "sdcard", 5)) {
 			printk(KERN_NOTICE "allydrop arch_reset:%x\n",mode);
-			writel(SDCARD_REBOOT_OK, restart_reason);
+			__raw_writel(SDCARD_REBOOT_OK, restart_reason);
 #endif	
 #ifdef CONFIG_SW_RESET
 		} else if (!strncmp(cmd, "androidpanic", 12)) {
 #ifdef FEATURE_SKY_PWR_ONOFF_REASON_CNT
 			printk(KERN_NOTICE "allydrop android panic!!!!in_panic:%x\n",in_panic);
 			sky_reset_reason=SYS_RESET_REASON_ANDROID;
-#endif			
-#if defined(CONFIG_PANTECH_ERROR_LOG)   
-			pantech_errlog_display_add_log("android panic\n", strlen("android panic in_panic\n"));
-			pantech_errlog_add_log("android framework error\n", strlen("android framework error\n"));
-			pantech_errlog_display_with_errlog(false,false);
-#endif   
+#endif		
 			panic("android framework error\n"); 
 #endif   
-		} else if (!strncmp(cmd, "oem-", 4)) {
+		} else if (!strncmp(cmd, "oem-", 4)){
 			unsigned long code;
 			code = simple_strtoul(cmd + 4, NULL, 16) & 0xff;
 			__raw_writel(0x6f656d00 | code, restart_reason);
@@ -311,42 +279,42 @@ void arch_reset(char mode, const char *cmd)
 			__raw_writel(sky_reset_reason, restart_reason);			//[BIH]++
 		} else {
 #ifdef FEATURE_SKY_PWR_ONOFF_REASON_CNT
-				if(in_panic){//sky_reset_reason
-					__raw_writel(sky_reset_reason, restart_reason);
-				}
-				else
+			if(in_panic){//sky_reset_reason
+				__raw_writel(sky_reset_reason, restart_reason);
+			}
+			else
 #endif
-					__raw_writel(0x77665501, restart_reason);
+			__raw_writel(0x77665501, restart_reason);
 		}
 #ifdef CONFIG_SKY_CHARGING
-		writel(NORMAL_RESET_MAGIC_NUM, restart_reason+4);
+		__raw_writel(NORMAL_RESET_MAGIC_NUM, restart_reason+4);
 #endif
 	}
 #ifdef MODEL_SKY
 	else //20110521 reboot err temp
 	{
-		restart_reason = ioremap_nocache(RESTART_REASON_ADDR, SZ_4K);
 #ifdef FEATURE_SKY_PWR_ONOFF_REASON_CNT
-				if(in_panic){//sky_reset_reason
-					writel(sky_reset_reason, restart_reason);
-				}
-				else
+		if(in_panic){//sky_reset_reason
+			__raw_writel(sky_reset_reason, restart_reason);
+		}
+		else
 #endif
-					writel(0x77665501, restart_reason);
+		__raw_writel(0x77665501, restart_reason);
 #ifdef CONFIG_SKY_CHARGING
-		writel(NORMAL_RESET_MAGIC_NUM, restart_reason+4);
+		__raw_writel(NORMAL_RESET_MAGIC_NUM, restart_reason+4);
 #endif
-		iounmap(restart_reason);
 	}
 #endif	
 
 	__raw_writel(0, msm_tmr0_base + WDT0_EN);
+	#if 0 //p14291
 	if (!(machine_is_msm8x60_fusion() || machine_is_msm8x60_fusn_ffa())) {
 		mb();
 		__raw_writel(0, PSHOLD_CTL_SU); /* Actually reset the chip */
 		mdelay(5000);
 		pr_notice("PS_HOLD didn't work, falling back to watchdog\n");
 	}
+	#endif
 
 	__raw_writel(1, msm_tmr0_base + WDT0_RST);
 	__raw_writel(5*0x31F3, msm_tmr0_base + WDT0_BARK_TIME);
@@ -360,7 +328,7 @@ void arch_reset(char mode, const char *cmd)
 static int __init msm_restart_init(void)
 {
 	int rc;
-#if 1//p14291_111214
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
 	void *phy_log_buf;
 #endif
 
@@ -368,25 +336,16 @@ static int __init msm_restart_init(void)
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	dload_mode_addr = MSM_IMEM_BASE + DLOAD_MODE_ADDR;
 
-// paiksun...
-#ifndef MODEL_SKY
 	/* Reset detection is switched on below.*/
 	set_dload_mode(1);
 #endif
-#endif
 	msm_tmr0_base = msm_timer_get_timer0_base();
-#ifndef MODEL_SKY
 	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR;
-#else
-	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR_ICS;
-#endif
 	pm_power_off = msm_power_off;
 
-#if 1//p14291_111214
-	//p14291_111214 --{
+#ifdef CONFIG_PANTECH_ERR_CRASH_LOGGING
 	phy_log_buf = (void*)virt_to_phys((void*)get_log_buf_addr());
 	writel(phy_log_buf, restart_reason+0xc); //0x0,0x4:magic1,2 0x8:using at msm_fb
-	// --}
 #endif
 
 	if (pmic_reset_irq != 0) {

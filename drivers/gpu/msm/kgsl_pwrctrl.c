@@ -14,7 +14,6 @@
 #include <mach/msm_iomap.h>
 #include <mach/msm_bus.h>
 #include <mach/socinfo.h>
-#include <linux/cpufreq.h>
 
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
@@ -28,10 +27,6 @@
 
 #define UPDATE_BUSY_VAL		1000000
 #define UPDATE_BUSY		50
-
-#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
-extern bool gpu_busy_state;
-#endif
 
 struct clk_pair {
 	const char *name;
@@ -286,25 +281,6 @@ static int kgsl_pwrctrl_gpubusy_show(struct device *dev,
 	return ret;
 }
 
-static int kgsl_pwrctrl_gpu_available_frequencies_show(
-					struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	struct kgsl_device *device = kgsl_device_from_dev(dev);
-	struct kgsl_pwrctrl *pwr;
-	int index, num_chars = 0;
-
-	if (device == NULL)
-		return 0;
-	pwr = &device->pwrctrl;
-	for (index = 0; index < pwr->num_pwrlevels - 1; index++)
-		num_chars += snprintf(buf + num_chars, PAGE_SIZE, "%d ",
-		pwr->pwrlevels[index].gpu_freq);
-	buf[num_chars++] = '\n';
-	return num_chars;
-}
-
 DEVICE_ATTR(gpuclk, 0644, kgsl_pwrctrl_gpuclk_show, kgsl_pwrctrl_gpuclk_store);
 DEVICE_ATTR(max_gpuclk, 0644, kgsl_pwrctrl_max_gpuclk_show,
 	kgsl_pwrctrl_max_gpuclk_store);
@@ -313,9 +289,6 @@ DEVICE_ATTR(idle_timer, 0644, kgsl_pwrctrl_idle_timer_show,
 	kgsl_pwrctrl_idle_timer_store);
 DEVICE_ATTR(gpubusy, 0644, kgsl_pwrctrl_gpubusy_show,
 	NULL);
-DEVICE_ATTR(gpu_available_frequencies, 0444,
-	kgsl_pwrctrl_gpu_available_frequencies_show,
-	NULL);
 
 static const struct device_attribute *pwrctrl_attr_list[] = {
 	&dev_attr_gpuclk,
@@ -323,7 +296,6 @@ static const struct device_attribute *pwrctrl_attr_list[] = {
 	&dev_attr_pwrnap,
 	&dev_attr_idle_timer,
 	&dev_attr_gpubusy,
-	&dev_attr_gpu_available_frequencies,
 	NULL
 };
 
@@ -360,13 +332,6 @@ static void kgsl_pwrctrl_busy_time(struct kgsl_device *device, bool on_time)
 		b->time = 0;
 	}
 	do_gettimeofday(&(b->start));
-
-#ifdef CONFIG_CPU_FREQ_GOV_BADASS_GPU_CONTROL
-	if (on_time)
-		gpu_busy_state = true;
-	else
-		gpu_busy_state = false;
-#endif
 }
 
 void kgsl_pwrctrl_clk(struct kgsl_device *device, int state,
@@ -520,7 +485,6 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	}
 	pwr->num_pwrlevels = pdata->num_levels;
 	pwr->active_pwrlevel = pdata->init_level;
-	pwr->thermal_pwrlevel = pdata->max_level; 
 	for (i = 0; i < pdata->num_levels; i++) {
 		pwr->pwrlevels[i].gpu_freq =
 		(pdata->pwrlevel[i].gpu_freq > 0) ?

@@ -39,6 +39,9 @@
 #include <linux/fb.h>
 #include <linux/time.h>
 
+#if defined(CONFIG_PANTECH_DEBUG)
+#include <mach/pantech_apanic.h> //p14291_pantech_dbg
+#endif
 #include "smd_private.h"
 #include "modem_notifier.h"
 
@@ -67,6 +70,33 @@ extern void ram_console_enable_console(int);
 
 #define PANIC_MAGIC      0xDAEDDAED
 #define PHDR_VERSION   0x01
+
+#if defined(CONFIG_PANTECH_DEBUG) //p14291_121102
+struct pantech_debug_log {
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_121102
+	atomic_t idx_sched[CONFIG_NR_CPUS];
+	struct sched_log sched[CONFIG_NR_CPUS][SCHED_LOG_MAX];
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_IRQ_LOG  //p14291_121102
+	atomic_t idx_irq[CONFIG_NR_CPUS];
+	struct irq_log irq[CONFIG_NR_CPUS][SCHED_LOG_MAX];
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_DCVS_LOG  //p14291_121102
+	atomic_t dcvs_log_idx ;
+	struct dcvs_debug dcvs_log[DCVS_LOG_MAX] ;	
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_RPM_LOG  //p14291_121102
+	atomic_t rpm_log_idx ;
+	struct rpm_debug rpm_set_log[RPM_LOG_MAX] ;	
+#endif
+};
+struct pantech_debug_log *pantech_dbg_log;
+static unsigned int pantechdbg_paddr;
+static unsigned int pantechdbg_size;
+#endif
 
 struct painc_info_date {
       unsigned short year;
@@ -125,11 +155,6 @@ extern void log_buf_clear(void);
 
 extern int logcat_buf_copy(char *dest, int len);
 extern void logcat_set_log(int index);
-
-// paiksun...
-#ifdef CONFIG_SW_RESET
-extern int pm8058_get_pwrkey_status(void);
-#endif
 
 #define QUAD_YEAR (366+(3*365))
 
@@ -601,16 +626,6 @@ void pantech_errlog_display_put_log(const char *log, int size)
         preempt_enable(); 
 
         lcd_panel_power_on(true);
-
-// paiksun...
-#ifdef CONFIG_SW_RESET
-        while(!pm8058_get_pwrkey_status())
-        {
-                writel(1, WDT0_RST);
-                mdelay(1000);
-                printk(KERN_INFO " pwrkey in released..");
-        }
-#endif        
 #endif
     }
 
@@ -887,11 +902,6 @@ static int apanic_logging(struct notifier_block *this, unsigned long event,
 
       touch_softlockup_watchdog();
  
-      /* this case is kernel panic message send to modem err */
-      if(ptr){
-            //smem_diag_set_message((char *)ptr);
-            printcrash((const char *)ptr);
-      }
       console_offset = 4096;
 
       /*
@@ -986,25 +996,60 @@ static int apanic_logging(struct notifier_block *this, unsigned long event,
       in_panic = 0;
       return NOTIFY_DONE;
 }
-#if defined(CONFIG_PANTECH_APANIC_RESET)
-static int apanic_reset(struct notifier_block *this, unsigned long event,void *ptr)
-{
-      printk(KERN_EMERG "pantech_apanic: reset modem & system download \n");
-
-      smsm_reset_modem(SMSM_SYSTEM_DOWNLOAD);
-}
-
-static struct notifier_block next_blk = {
-      .notifier_call = apanic_reset,
-};
-#endif
 
 static struct notifier_block panic_blk = {
       .notifier_call    = apanic_logging,
-#if defined(CONFIG_PANTECH_APANIC_RESET)
-      .next = &next_blk,
-#endif
 };
+
+#if defined(CONFIG_PANTECH_DEBUG) //p14291_121102
+static int __init __init_pantech_debug_log(void)
+{
+	int i;
+	struct pantech_debug_log *vaddr;
+	unsigned int paddr;
+	unsigned int size;	
+
+	size = sizeof(struct pantech_debug_log);
+	paddr=allocate_contiguous_ebi_nomap(size, SZ_4K);
+	vaddr = ioremap_nocache(paddr, size);
+
+	pr_info("[PANTECH_DBG] %s: vaddr=0x%x paddr=0x%x size=0x%x "
+		"sizeof(struct pantech_debug_log)=0x%x\n", __func__,
+		(unsigned int)vaddr, paddr, size,
+		sizeof(struct pantech_debug_log));
+
+	if ((vaddr == NULL) || (sizeof(struct pantech_debug_log) > size)) {
+		pr_info("%s: ERROR! init failed!\n", __func__);
+		return -EFAULT;
+	}
+
+	memset(vaddr, 0, size);
+	for (i = 0; i < CONFIG_NR_CPUS; i++) {
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_121102
+		atomic_set(&(vaddr->idx_sched[i]), -1);
+#endif
+#ifdef CONFIG_PANTECH_DEBUG_IRQ_LOG  //p14291_121102
+		atomic_set(&(vaddr->idx_irq[i]), -1);
+#endif
+	}
+	
+#ifdef CONFIG_PANTECH_DEBUG_DCVS_LOG  //p14291_121102
+	atomic_set(&(vaddr->dcvs_log_idx), -1);
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_RPM_LOG  //p14291_121102
+	atomic_set(&(vaddr->rpm_log_idx), -1);
+#endif
+
+	pantech_dbg_log = vaddr;
+	pr_info("[PANTECH_DBG] %s: init done\n", __func__);
+
+	return 0;
+}
+
+
+
+#endif
 
 int __init apanic_pantech_init(void)
 {
@@ -1028,9 +1073,133 @@ int __init apanic_pantech_init(void)
             driver_context.bounce    = (void *)crash_buf;
             driver_context.initialized = 1;
       }
+
+#if defined(CONFIG_PANTECH_DEBUG) //p14291_121102
+	  __init_pantech_debug_log();
+#endif
+      
       printk(KERN_INFO "Android kernel / Modem panic handler initialized \n");
       return 0;
 }
+
+#if defined(CONFIG_PANTECH_DEBUG)
+#ifdef CONFIG_PANTECH_DEBUG_SCHED_LOG  //p14291_121102
+void __pantech_debug_task_sched_log(int cpu, struct task_struct *task,
+						char *msg)
+{
+	unsigned i;
+
+	if (!pantech_dbg_log)
+		return;
+
+	if (!task && !msg)
+		return;
+
+	i = atomic_inc_return(&(pantech_dbg_log->idx_sched[cpu]))
+		& (SCHED_LOG_MAX - 1);
+	pantech_dbg_log->sched[cpu][i].time = cpu_clock(cpu);
+	if (task) {
+		strncpy(pantech_dbg_log->sched[cpu][i].comm, task->comm,
+			sizeof(pantech_dbg_log->sched[cpu][i].comm));
+		pantech_dbg_log->sched[cpu][i].pid = task->pid;
+	} else {
+		strncpy(pantech_dbg_log->sched[cpu][i].comm, msg,
+			sizeof(pantech_dbg_log->sched[cpu][i].comm));
+		pantech_dbg_log->sched[cpu][i].pid = -1;
+	}
+}
+void pantech_debug_task_sched_log_short_msg(char *msg)
+{
+	__pantech_debug_task_sched_log(smp_processor_id(), NULL, msg);
+}
+void pantech_debug_task_sched_log(int cpu, struct task_struct *task)
+{
+	__pantech_debug_task_sched_log(cpu, task, NULL);
+}
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_IRQ_LOG  //p14291_121102
+void pantech_debug_irq_sched_log(unsigned int irq, void *fn, int en, unsigned long long start_time)
+{
+	int cpu = smp_processor_id();
+	unsigned i;
+
+	if (!pantech_dbg_log)
+		return;
+
+	i = atomic_inc_return(&(pantech_dbg_log->idx_irq[cpu]))
+		& (SCHED_LOG_MAX - 1);
+	pantech_dbg_log->irq[cpu][i].time = start_time;
+	pantech_dbg_log->irq[cpu][i].end_time = cpu_clock(cpu);
+	pantech_dbg_log->irq[cpu][i].elapsed_time =
+	pantech_dbg_log->irq[cpu][i].end_time - start_time;
+	pantech_dbg_log->irq[cpu][i].irq = irq;
+	pantech_dbg_log->irq[cpu][i].fn = (void *)fn;
+	pantech_dbg_log->irq[cpu][i].en = en;
+	pantech_dbg_log->irq[cpu][i].preempt_count = preempt_count();
+	pantech_dbg_log->irq[cpu][i].context = &cpu;
+}
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_DCVS_LOG  //p14291_121102
+void pantech_debug_dcvs_log(int cpu_no, unsigned int prev_freq,
+						unsigned int new_freq)
+{
+	unsigned int i;
+	if (!pantech_dbg_log)
+		return;
+
+	i = atomic_inc_return(&(pantech_dbg_log->dcvs_log_idx)) 
+		& (DCVS_LOG_MAX - 1);
+	pantech_dbg_log->dcvs_log[i].cpu_no = cpu_no;
+	pantech_dbg_log->dcvs_log[i].prev_freq = prev_freq;
+	pantech_dbg_log->dcvs_log[i].new_freq = new_freq;
+	pantech_dbg_log->dcvs_log[i].time = cpu_clock(cpu_no);
+}
+#endif
+
+#ifdef CONFIG_PANTECH_DEBUG_RPM_LOG  //p14291_121102
+void pantech_debug_rpm_log(unsigned int set, unsigned int id, unsigned int value)
+{
+	int cpu = smp_processor_id();
+	unsigned int i;
+	
+	if (!pantech_dbg_log)
+		return;
+
+	i = atomic_inc_return(&(pantech_dbg_log->rpm_log_idx)) 
+		& (RPM_LOG_MAX - 1);
+	pantech_dbg_log->rpm_set_log[i].set = set;
+	pantech_dbg_log->rpm_set_log[i].id = id;
+	pantech_dbg_log->rpm_set_log[i].value = value;
+	pantech_dbg_log->rpm_set_log[i].time = cpu_clock(cpu);
+}
+#endif
+
+
+static int __init pantech_dbg_setup(char *str)
+{
+	unsigned size = memparse(str, &str);
+
+	pr_emerg("%s: str=%s\n", __func__, str);
+
+	printk("pantech_dbg_setup\n");
+	printk("%s: str=%s\n", __func__, str);
+
+	if (size && (size == roundup_pow_of_two(size)) && (*str == '@')) {
+		pantechdbg_paddr = (unsigned int)memparse(++str, NULL);
+		pantechdbg_size = size;
+	}
+
+	printk("%s: pantechdbg_paddr = 0x%x\n", __func__, pantechdbg_paddr);
+	printk("%s: pantechdbg_size = 0x%x\n", __func__, pantechdbg_size);
+
+	return 1;
+}
+
+__setup("pantech_dbg=", pantech_dbg_setup);
+#endif /* CONFIG_PANTECH_DEBUG */
+
 
 module_init(apanic_pantech_init);
 
