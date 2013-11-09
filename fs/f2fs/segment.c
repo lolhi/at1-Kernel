@@ -264,8 +264,9 @@ static void __add_sum_entry(struct f2fs_sb_info *sbi, int type,
  */
 int npages_for_summary_flush(struct f2fs_sb_info *sbi)
 {
+	int total_size_bytes = 0;
 	int valid_sum_count = 0;
-	int i, sum_in_page;
+	int i, sum_space;
 
 	for (i = CURSEG_HOT_DATA; i <= CURSEG_COLD_DATA; i++) {
 		if (sbi->ckpt->alloc_type[i] == SSR)
@@ -274,12 +275,13 @@ int npages_for_summary_flush(struct f2fs_sb_info *sbi)
 			valid_sum_count += curseg_blkoff(sbi, i);
 	}
 
-	sum_in_page = (PAGE_CACHE_SIZE - 2 * SUM_JOURNAL_SIZE -
-			SUM_FOOTER_SIZE) / SUMMARY_SIZE;
-	if (valid_sum_count <= sum_in_page)
+	total_size_bytes = valid_sum_count * (SUMMARY_SIZE + 1)
+			+ sizeof(struct nat_journal) + 2
+			+ sizeof(struct sit_journal) + 2;
+	sum_space = PAGE_CACHE_SIZE - SUM_FOOTER_SIZE;
+	if (total_size_bytes < sum_space)
 		return 1;
-	else if ((valid_sum_count - sum_in_page) <=
-		(PAGE_CACHE_SIZE - SUM_FOOTER_SIZE) / SUMMARY_SIZE)
+	else if (total_size_bytes < 2 * sum_space)
 		return 2;
 	return 3;
 }
