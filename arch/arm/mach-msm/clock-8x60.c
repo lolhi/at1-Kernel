@@ -322,8 +322,51 @@ enum vdd_dig_levels {
 	VDD_DIG_HIGH
 };
 
+#ifdef CONFIG_GPU_VOLTAGE_TABLE
+#define GPU_MIN_VDD           900000
+#define GPU_MAX_VDD          1200000
+
+static const int vdd_uv[] = {
+	[VDD_DIG_NONE]    =  500000,
+#if 1  //hhs 20110622 pm8058_s1 modem 0.2v up
+	[VDD_DIG_LOW]     = 1200000,
+	[VDD_DIG_NOMINAL] = 1200000,
+	[VDD_DIG_HIGH]    = 1200000
+#else
+	[VDD_DIG_LOW]     = 1000000,
+	[VDD_DIG_NOMINAL] = 1100000,
+	[VDD_DIG_HIGH]    = 1200000
+#endif
+};
+
+ssize_t get_gpu_vdd_levels_str(char *buf)
+{
+  int i, len = 0;
+
+  if (buf)
+  {
+    for (i = 1; i <= 3; i++)
+    {
+      len += sprintf(buf + len, "%d\n", vdd_uv[i]);
+    }
+  }
+  return len;
+}
+
+void set_gpu_vdd_levels(int uv_tbl[])
+{
+  int i;
+  for (i = 1; i <= 3; i++)
+  {
+        vdd_uv[i] = min(max(uv_tbl[i - 1],
+                        GPU_MIN_VDD), GPU_MAX_VDD);
+  }
+}
+#endif
+
 static int set_vdd_dig(struct clk_vdd_class *vdd_class, int level)
 {
+#ifndef CONFIG_GPU_VOLTAGE_TABLE
 	static const int vdd_uv[] = {
 		[VDD_DIG_NONE]    =  500000,
 	#if 1  //hhs 20110622 pm8058_s1 modem 0.2v up
@@ -336,9 +379,18 @@ static int set_vdd_dig(struct clk_vdd_class *vdd_class, int level)
 		[VDD_DIG_HIGH]    = 1200000
     #endif
 	};
-
+#endif
+#ifdef CONFIG_GPU_VOLTAGE_TABLE
+	int ret;
+	ret = rpm_vreg_set_voltage(RPM_VREG_ID_PM8058_S1, RPM_VREG_VOTER3,
+				    vdd_uv[level], vdd_uv[VDD_DIG_HIGH], 1);
+	//pr_alert("GPU VOLTAGE - %d - %d", vdd_uv[level], ret);
+	return ret;
+#endif
+#ifndef CONFIG_GPU_VOLTAGE_TABLE
 	return rpm_vreg_set_voltage(RPM_VREG_ID_PM8058_S1, RPM_VREG_VOTER3,
 				    vdd_uv[level], 1200000, 1);
+#endif
 }
 
 static DEFINE_VDD_CLASS(vdd_dig, set_vdd_dig);
