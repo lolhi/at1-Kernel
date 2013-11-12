@@ -326,7 +326,7 @@ enum vdd_dig_levels {
 #define GPU_MIN_VDD           900000
 #define GPU_MAX_VDD          1200000
 
-static const int vdd_uv[] = {
+static int vdd_uv[] = {
 	[VDD_DIG_NONE]    =  500000,
 #if 1  //hhs 20110622 pm8058_s1 modem 0.2v up
 	[VDD_DIG_LOW]     = 1200000,
